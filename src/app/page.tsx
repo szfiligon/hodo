@@ -1,6 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { Paper, Typography, Box, TextField, List, ListItem, ListItemText, IconButton, InputAdornment, Checkbox } from '@mui/material';
 
 interface TaskMenu {
   id: number;
@@ -13,6 +17,9 @@ interface Task {
   text: string;
   created_at: string;
   completed: boolean;
+  remarks?: string;
+  color_tag?: string;
+  remind_me?: string;
 }
 
 export default function TodoList() {
@@ -25,10 +32,20 @@ export default function TodoList() {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; type: 'menu' | 'task'; id: number } | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [taskDetailInput, setTaskDetailInput] = useState('');
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [remindMe, setRemindMe] = useState<string | null>(null);
 
   const contextMenuRef = useRef<HTMLDivElement>(null);
 
   const fixedTaskMenus: TaskMenu[] = [{ id: -1, name: '所有任务' }];
+
+  const colorOptions = [
+    { value: '#FFB6B6', label: '浅红' },
+    { value: '#D4A5A5', label: '浅褐' },
+    { value: '#B6C7FF', label: '浅蓝' },
+    { value: '#B6FFB6', label: '浅绿' },
+    { value: '#D4D4D4', label: '浅灰' },
+  ];
 
   useEffect(() => {
     fetchTaskMenus();
@@ -44,6 +61,8 @@ export default function TodoList() {
   useEffect(() => {
     if (selectedTask) {
       fetchTaskDetail(selectedTask.id);
+      setSelectedColor(selectedTask.color_tag || null);
+      setRemindMe(selectedTask.remind_me || null);
     }
   }, [selectedTask]);
 
@@ -69,6 +88,8 @@ export default function TodoList() {
     const response = await fetch(`/api/tasks?taskId=${taskId}`);
     const data = await response.json();
     setTaskDetailInput(data.remarks || '');
+    setSelectedColor(data.color_tag || null);
+    setRemindMe(data.remind_me || null);
   };
 
   const createTaskMenu = async () => {
@@ -177,216 +198,469 @@ export default function TodoList() {
     });
   };
 
+  const saveColorTag = async (taskId: number, color: string | null) => {
+    await fetch('/api/tasks', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: taskId, color_tag: color }),
+    });
+  };
+
+  const saveRemindMe = async (taskId: number, remindMe: string | null) => {
+    await fetch('/api/tasks', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: taskId, remind_me: remindMe }),
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 text-gray-800">
-      <div className="flex h-screen">
-        {/* Left Pane - Task Menus */}
-        <div className="w-1/4 bg-white border-r border-gray-200 p-6 shadow-lg">
-          <h2 className="text-xl font-semibold text-gray-700 mb-6">Task Menus</h2>
-          <div className="mb-6">
-            <div className="relative">
-              <input
-                type="text"
-                value={newMenuName}
-                onChange={(e) => setNewMenuName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && createTaskMenu()}
-                placeholder="Create new menu..."
-                className="w-full p-3 pl-10 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
-              />
-              <svg
-                className="absolute left-3 top-3.5 h-5 w-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-            </div>
-          </div>
-          <div className="space-y-2 max-h-[calc(100vh-12rem)] overflow-y-auto">
-            {taskMenus.map(menu => (
-              <div
-                key={menu.id}
-                className={`p-4 rounded-lg cursor-pointer transition-all duration-200 ${
-                  selectedMenu === menu.id 
-                    ? 'bg-blue-50 border-l-4 border-blue-500' 
-                    : 'hover:bg-gray-50 border-l-4 border-transparent'
-                }`}
-                onClick={() => setSelectedMenu(menu.id)}
-                onContextMenu={(e) => handleContextMenu(e, 'menu', menu.id)}
-                style={{ outline: 'none' }}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">{truncateText(menu.name, 10)}</span>
-                  {menu.id !== 0 && (
-                    <button
-                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity duration-200"
+    <LocalizationProvider dateAdapter={AdapterDateFns}>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 text-gray-800">
+        <div className="flex h-screen">
+          {/* Left Pane - Task Menus */}
+          <Paper 
+            elevation={3}
+            sx={{ 
+              width: '25%',
+              height: '100%',
+              p: 3,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+              borderRadius: 0
+            }}
+          >
+            <Typography variant="h6" sx={{ color: 'text.secondary', mb: 2 }}>
+              任务菜单
+            </Typography>
+            
+            <TextField
+              value={newMenuName}
+              onChange={(e) => setNewMenuName(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && createTaskMenu()}
+              placeholder="创建新菜单..."
+              size="small"
+              fullWidth
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: 'grey.50',
+                  '& fieldset': {
+                    border: 'none'
+                  },
+                  '&:hover fieldset': {
+                    border: 'none'
+                  },
+                  '&.Mui-focused fieldset': {
+                    border: 'none'
+                  }
+                },
+                '& .MuiInputBase-input': {
+                  fontSize: '14px'
+                }
+              }}
+            />
+
+            <List sx={{ 
+              flex: 1, 
+              overflow: 'auto',
+              '& .MuiListItem-root': {
+                px: 1,
+                py: 0.5,
+                borderRadius: 1,
+                '&:hover': {
+                  backgroundColor: 'action.hover'
+                }
+              }
+            }}>
+              {taskMenus.map(menu => (
+                <ListItem
+                  key={menu.id}
+                  onClick={() => setSelectedMenu(menu.id)}
+                  onContextMenu={(e) => handleContextMenu(e, 'menu', menu.id)}
+                  sx={{
+                    cursor: 'pointer',
+                    backgroundColor: selectedMenu === menu.id ? 'grey.200' : 'transparent',
+                    '&:hover': {
+                      backgroundColor: selectedMenu === menu.id ? 'grey.300' : 'action.hover'
+                    },
+                    '&:focus': {
+                      outline: 'none'
+                    },
+                    userSelect: 'none'
+                  }}
+                >
+                  <ListItemText 
+                    primary={
+                      <Typography
+                        sx={{
+                          fontSize: '14px',
+                          fontWeight: selectedMenu === menu.id ? 500 : 400
+                        }}
+                      >
+                        {menu.name}
+                      </Typography>
+                    }
+                  />
+                  {menu.id !== -1 && (
+                    <IconButton
+                      size="small"
                       onClick={(e) => {
                         e.stopPropagation();
                         deleteTaskMenu(menu.id);
+                      }}
+                      sx={{
+                        opacity: 0,
+                        transition: 'opacity 0.2s',
+                        '&:hover': {
+                          color: 'error.main'
+                        },
+                        '.MuiListItem-root:hover &': {
+                          opacity: 1
+                        }
                       }}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
-                    </button>
+                    </IconButton>
                   )}
-                </div>
+                </ListItem>
+              ))}
+            </List>
+          </Paper>
+
+          {/* Right Pane - Tasks */}
+          <div className="w-3/4 p-8">
+            {selectedMenu ? (
+              <>
+                <Box sx={{ mb: 4 }}>
+                  <Box sx={{ mb: 3 }}>
+                    <TextField
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="搜索任务..."
+                      size="small"
+                      fullWidth
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                          </InputAdornment>
+                        ),
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          backgroundColor: 'white',
+                          '& fieldset': {
+                            border: 'none'
+                          },
+                          '&:hover fieldset': {
+                            border: 'none'
+                          },
+                          '&.Mui-focused fieldset': {
+                            border: 'none'
+                          }
+                        },
+                        '& .MuiInputBase-input': {
+                          fontSize: '14px'
+                        }
+                      }}
+                    />
+                  </Box>
+                  <Box>
+                    <TextField
+                      value={newTaskText}
+                      onChange={(e) => setNewTaskText(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && createTask()}
+                      placeholder="添加新任务..."
+                      size="small"
+                      fullWidth
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                          </InputAdornment>
+                        ),
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          backgroundColor: 'white',
+                          '& fieldset': {
+                            border: 'none'
+                          },
+                          '&:hover fieldset': {
+                            border: 'none'
+                          },
+                          '&.Mui-focused fieldset': {
+                            border: 'none'
+                          }
+                        },
+                        '& .MuiInputBase-input': {
+                          fontSize: '14px'
+                        }
+                      }}
+                    />
+                  </Box>
+                </Box>
+                <List sx={{ 
+                  maxHeight: 'calc(100vh - 16rem)',
+                  overflow: 'auto',
+                  '& .MuiListItem-root': {
+                    px: 1,
+                    py: 0.5,
+                    borderRadius: 1,
+                    '&:hover': {
+                      backgroundColor: 'action.hover'
+                    }
+                  }
+                }}>
+                  {filteredTasks.map(task => (
+                    <ListItem
+                      key={task.id}
+                      onClick={() => handleTaskClick(task)}
+                      onContextMenu={(e) => handleContextMenu(e, 'task', task.id)}
+                      sx={{
+                        cursor: 'pointer',
+                        backgroundColor: selectedTask?.id === task.id ? 'grey.200' : 'white',
+                        '&:hover': {
+                          backgroundColor: selectedTask?.id === task.id ? 'grey.300' : 'action.hover'
+                        },
+                        '&:focus': {
+                          outline: 'none'
+                        },
+                        userSelect: 'none'
+                      }}
+                    >
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1,
+                        flex: 1,
+                        minWidth: 0
+                      }}>
+                        <Checkbox
+                          checked={task.completed}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            toggleTask(task.id, task.completed);
+                          }}
+                          size="small"
+                          sx={{
+                            p: 0.5,
+                            '& .MuiSvgIcon-root': {
+                              fontSize: 20
+                            }
+                          }}
+                        />
+                        <Typography
+                          sx={{
+                            flex: 1,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            textDecoration: task.completed ? 'line-through' : 'none',
+                            color: task.completed ? 'text.secondary' : 'text.primary',
+                            fontSize: '14px',
+                            fontWeight: selectedTask?.id === task.id ? 500 : 400
+                          }}
+                        >
+                          {task.text}
+                        </Typography>
+                        {task.color_tag && (
+                          <Box 
+                            sx={{ 
+                              width: 12,
+                              height: 12,
+                              borderRadius: '50%',
+                              flexShrink: 0,
+                              backgroundColor: task.color_tag
+                            }}
+                          />
+                        )}
+                      </Box>
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteTask(task.id);
+                        }}
+                        sx={{
+                          opacity: 0,
+                          transition: 'opacity 0.2s',
+                          '&:hover': {
+                            color: 'error.main'
+                          },
+                          '.MuiListItem-root:hover &': {
+                            opacity: 1
+                          }
+                        }}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </IconButton>
+                    </ListItem>
+                  ))}
+                </List>
+
+                {/* Task Details Pane */}
+                {selectedTask && (
+                  <Paper 
+                    elevation={3} 
+                    sx={{ 
+                      position: 'fixed',
+                      right: 0,
+                      top: 0,
+                      height: '100%',
+                      width: '30%',
+                      p: 3,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 2
+                    }}
+                  >
+                    <Typography variant="h6" sx={{ mb: 2 }}>
+                      {selectedTask.text}
+                    </Typography>
+                    
+                    {/* Color Tag Selection */}
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      {colorOptions.map((color) => (
+                        <Box
+                          key={color.value}
+                          onClick={() => {
+                            const newColor = selectedColor === color.value ? null : color.value;
+                            setSelectedColor(newColor);
+                            saveColorTag(selectedTask.id, newColor);
+                          }}
+                          sx={{
+                            width: 24,
+                            height: 24,
+                            border: '1px solid',
+                            borderColor: color.value,
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            backgroundColor: selectedColor === color.value ? color.value : 'transparent',
+                            '&:hover': {
+                              opacity: 0.8
+                            },
+                            '&:focus': {
+                              outline: 'none'
+                            },
+                            userSelect: 'none',
+                            WebkitUserSelect: 'none',
+                            msUserSelect: 'none',
+                            MozUserSelect: 'none',
+                            '&::selection': {
+                              background: 'transparent'
+                            }
+                          }}
+                          tabIndex={-1}
+                          title={color.label}
+                        />
+                      ))}
+                    </Box>
+
+                    {/* Remind Me Date-Time Picker */}
+                    <LocalizationProvider dateAdapter={AdapterDateFns}>
+                      <DateTimePicker
+                        value={remindMe ? new Date(remindMe) : null}
+                        onChange={(newValue: Date | null) => {
+                          setRemindMe(newValue ? newValue.toISOString() : null);
+                          if (selectedTask) {
+                            saveRemindMe(selectedTask.id, newValue ? newValue.toISOString() : null);
+                          }
+                        }}
+                        slotProps={{
+                          textField: {
+                            size: "small",
+                            fullWidth: true,
+                            placeholder: "提醒我",
+                            sx: { 
+                              '& .MuiInputBase-root': {
+                                height: '32px',
+                                fontSize: '14px'
+                              }
+                            }
+                          }
+                        }}
+                      />
+                    </LocalizationProvider>
+
+                    {/* Remarks Textarea */}
+                    <TextField
+                      multiline
+                      value={taskDetailInput}
+                      onChange={(e) => setTaskDetailInput(e.target.value)}
+                      onBlur={() => saveTaskDetail(selectedTask.id, taskDetailInput)}
+                      placeholder="备注"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          fontSize: '14px',
+                          minHeight: '240px',
+                          alignItems: 'flex-start',
+                          '& textarea': {
+                            overflow: 'hidden',
+                            resize: 'none',
+                            paddingTop: '14px'
+                          }
+                        }
+                      }}
+                    />
+                  </Paper>
+                )}
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <p className="text-lg">Select a task menu to view tasks</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
-        {/* Right Pane - Tasks */}
-        <div className="w-3/4 p-8">
-          {selectedMenu ? (
-            <>
-              <div className="mb-8">
-                <div className="relative mb-6">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search tasks..."
-                    className="w-full p-3 pl-10 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                  />
-                  <svg
-                    className="absolute left-3 top-3.5 h-5 w-5 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
-                  </svg>
-                </div>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={newTaskText}
-                    onChange={(e) => setNewTaskText(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && createTask()}
-                    placeholder="Add a new task..."
-                    className="w-full p-3 pl-10 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                  />
-                  <svg
-                    className="absolute left-3 top-3.5 h-5 w-5 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 4v16m8-8H4"
-                    />
-                  </svg>
-                </div>
-              </div>
-              <div className="space-y-3 max-h-[calc(100vh-16rem)] overflow-y-auto">
-                {filteredTasks.map(task => (
-                  <div
-                    key={task.id}
-                    className="group flex items-center justify-between p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200"
-                    onClick={() => handleTaskClick(task)}
-                    onContextMenu={(e) => handleContextMenu(e, 'task', task.id)}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="relative">
-                        <input
-                          type="checkbox"
-                          checked={task.completed}
-                          onChange={() => toggleTask(task.id, task.completed)}
-                          className="w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500 cursor-pointer"
-                        />
-                        {!!task.completed && (
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                      <span className={`${task.completed ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                        {truncateText(task.text, 30)}
-                      </span>
-                    </div>
-                    <button
-                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity duration-200"
-                      onClick={() => deleteTask(task.id)}
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {/* Task Details Pane */}
-              {selectedTask && (
-                <div className="fixed right-0 top-0 h-full w-1/4 bg-white shadow-lg p-6">
-                  <h3 className="text-xl font-semibold mb-4">Task Details</h3>
-                  <p><strong>Name:</strong> {selectedTask.text}</p>
-                  <p><strong>Created At:</strong> {new Date(selectedTask.created_at).toLocaleString()}</p>
-                  <textarea
-                    value={taskDetailInput}
-                    onChange={(e) => {
-                      setTaskDetailInput(e.target.value);
-                      saveTaskDetail(selectedTask.id, e.target.value);
-                    }}
-                    style={{ width: '90%', height: '30%' }}
-                    className="border border-gray-150 rounded-lg p-2 mt-4 focus:border-gray-150"
-                  />
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400">
-              <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              <p className="text-lg">Select a task menu to view tasks</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Context Menu */}
-      {contextMenu && (
-        <div
-          ref={contextMenuRef}
-          className="fixed bg-white shadow-lg rounded-lg py-2 z-50 min-w-[150px]"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-        >
-          <button
-            className="w-full px-4 py-2 text-left text-red-500 hover:bg-red-50 flex items-center gap-2"
-            onClick={() => {
-              if (contextMenu.type === 'menu') {
-                deleteTaskMenu(contextMenu.id);
-              } else if (contextMenu.type === 'task') {
-                deleteTask(contextMenu.id);
-              }
-              setContextMenu(null);
-            }}
+        {/* Context Menu */}
+        {contextMenu && (
+          <div
+            ref={contextMenuRef}
+            className="fixed bg-white shadow-lg rounded-lg py-2 z-50 min-w-[150px]"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-            Delete
-          </button>
-        </div>
-      )}
-    </div>
+            <button
+              className="w-full px-4 py-2 text-left text-red-500 hover:bg-red-50 flex items-center gap-2"
+              onClick={() => {
+                if (contextMenu.type === 'menu') {
+                  deleteTaskMenu(contextMenu.id);
+                } else if (contextMenu.type === 'task') {
+                  deleteTask(contextMenu.id);
+                }
+                setContextMenu(null);
+              }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete
+            </button>
+          </div>
+        )}
+      </div>
+    </LocalizationProvider>
   );
 } 
