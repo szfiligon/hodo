@@ -662,7 +662,7 @@ export default function TodoList() {
                       gap: 2
                     }}
                   >
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       {isEditingTitle ? (
                         <TextField
                           value={editedTitle}
@@ -703,7 +703,21 @@ export default function TodoList() {
                           {selectedTask.text}
                         </Typography>
                       )}
-                      
+                      <IconButton
+                        size="small"
+                        onClick={() => setSelectedTask(null)}
+                        sx={{
+                          '&:hover': {
+                            color: 'error.main'
+                          }
+                        }}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </IconButton>
+                    </Box>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                       {/* Task Steps Section */}
                       <Accordion 
                         defaultExpanded
