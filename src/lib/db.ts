@@ -18,6 +18,7 @@ db.exec(`
     remarks TEXT DEFAULT NULL,
     completed BOOLEAN DEFAULT 0,
     remind_me DATETIME DEFAULT NULL,
+    due_date DATETIME DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 

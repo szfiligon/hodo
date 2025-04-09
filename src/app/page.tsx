@@ -34,6 +34,7 @@ interface Task {
   steps?: TaskStep[];
   importance?: boolean;
   isTodayTask?: boolean;
+  due_date?: string;
 }
 
 export default function TodoList() {
@@ -52,6 +53,7 @@ export default function TodoList() {
   const [taskSteps, setTaskSteps] = useState<TaskStep[]>([]);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
+  const [dueDate, setDueDate] = useState<string | null>(null);
 
   const contextMenuRef = useRef<HTMLDivElement>(null);
 
@@ -88,6 +90,7 @@ export default function TodoList() {
         setTaskDetailInput(data.remarks || '');
         setSelectedColor(data.color_tag || null);
         setRemindMe(data.remind_me || null);
+        setDueDate(data.due_date || null);
         // Check if the task is part of 'Today's Tasks'
         const todayTaskResponse = await fetch(`/api/tasks?today=true`);
         const todayTasks = await todayTaskResponse.json();
@@ -283,6 +286,14 @@ export default function TodoList() {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: taskId, remind_me: remindMe }),
+    });
+  };
+
+  const saveDueDate = async (taskId: number, dueDate: string | null) => {
+    await fetch('/api/tasks', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: taskId, due_date: dueDate }),
     });
   };
 
@@ -981,30 +992,63 @@ export default function TodoList() {
                     </Button>
 
                     {/* Remind Me Date-Time Picker */}
-                    <LocalizationProvider dateAdapter={AdapterDateFns}>
-                      <DateTimePicker
-                        value={remindMe ? new Date(remindMe) : null}
-                        onChange={(newValue: Date | null) => {
-                          setRemindMe(newValue ? newValue.toISOString() : null);
-                          if (selectedTask) {
-                            saveRemindMe(selectedTask.id, newValue ? newValue.toISOString() : null);
-                          }
-                        }}
-                        slotProps={{
-                          textField: {
-                            size: "small",
-                            fullWidth: true,
-                            placeholder: "提醒我",
-                            sx: { 
-                              '& .MuiInputBase-root': {
-                                height: '32px',
-                                fontSize: '14px'
+                    <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                      <Box sx={{ flex: 1 }}>
+                        <LocalizationProvider dateAdapter={AdapterDateFns}>
+                          <DateTimePicker
+                            value={remindMe ? new Date(remindMe) : null}
+                            onChange={(newValue: Date | null) => {
+                              setRemindMe(newValue ? newValue.toISOString() : null);
+                              if (selectedTask) {
+                                saveRemindMe(selectedTask.id, newValue ? newValue.toISOString() : null);
                               }
-                            }
-                          }
-                        }}
-                      />
-                    </LocalizationProvider>
+                            }}
+                            slotProps={{
+                              textField: {
+                                size: "small",
+                                fullWidth: true,
+                                placeholder: "提醒我",
+                                sx: { 
+                                  '& .MuiInputBase-root': {
+                                    height: '32px',
+                                    fontSize: '14px'
+                                  }
+                                }
+                              }
+                            }}
+                            sx={{ flex: 1 }}
+                          />
+                        </LocalizationProvider>
+                      </Box>
+
+                      <Box sx={{ flex: 1 }}>
+                        <LocalizationProvider dateAdapter={AdapterDateFns}>
+                          <DateTimePicker
+                            value={dueDate ? new Date(dueDate) : null}
+                            onChange={(newValue: Date | null) => {
+                              setDueDate(newValue ? newValue.toISOString() : null);
+                              if (selectedTask) {
+                                saveDueDate(selectedTask.id, newValue ? newValue.toISOString() : null);
+                              }
+                            }}
+                            slotProps={{
+                              textField: {
+                                size: "small",
+                                fullWidth: true,
+                                placeholder: "到期时间",
+                                sx: { 
+                                  '& .MuiInputBase-root': {
+                                    height: '32px',
+                                    fontSize: '14px'
+                                  }
+                                }
+                              }
+                            }}
+                            sx={{ flex: 1 }}
+                          />
+                        </LocalizationProvider>
+                      </Box>
+                    </Box>
 
                     {/* Remarks Textarea */}
                     <TextField

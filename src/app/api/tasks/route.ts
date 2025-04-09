@@ -37,13 +37,13 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { taskMenuId, text } = await request.json();
+    const { taskMenuId, text, due_date } = await request.json();
     if (!taskMenuId || !text) {
       return NextResponse.json({ error: 'Task menu ID and text are required' }, { status: 400 });
     }
 
-    const result = db.prepare('INSERT INTO tasks (task_menu_id, text, remarks) VALUES (?, ?, ?)').run(taskMenuId, text, '');
-    return NextResponse.json({ id: result.lastInsertRowid, taskMenuId, text });
+    const result = db.prepare('INSERT INTO tasks (task_menu_id, text, remarks, due_date) VALUES (?, ?, ?, ?)').run(taskMenuId, text, '', due_date);
+    return NextResponse.json({ id: result.lastInsertRowid, taskMenuId, text, due_date });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create task' }, { status: 500 });
   }
@@ -65,9 +65,13 @@ export async function DELETE(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const { id, completed, remarks, color_tag, remind_me, text, importance, isTodayTask } = await request.json();
-    if (id === undefined || (completed === undefined && remarks === undefined && color_tag === undefined && remind_me === undefined && text === undefined && importance === undefined && isTodayTask === undefined)) {
+    const { id, completed, remarks, color_tag, remind_me, text, importance, isTodayTask, due_date } = await request.json();
+    if (id === undefined || (completed === undefined && remarks === undefined && color_tag === undefined && remind_me === undefined && text === undefined && importance === undefined && isTodayTask === undefined && due_date === undefined)) {
       return NextResponse.json({ error: 'ID and at least one field to update are required' }, { status: 400 });
+    }
+
+    if (due_date !== undefined) {
+      db.prepare('UPDATE tasks SET due_date = ? WHERE id = ?').run(due_date, id);
     }
 
     if (isTodayTask !== undefined) {
