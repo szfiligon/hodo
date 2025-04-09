@@ -71,9 +71,11 @@ export async function PATCH(request: Request) {
     }
 
     if (isTodayTask !== undefined) {
-      if (isTodayTask) {
+      const existingAssociation = db.prepare('SELECT 1 FROM task_menu_associations WHERE task_id = ? AND menu_id = ?').get(id, -2);
+
+      if (isTodayTask && !existingAssociation) {
         db.prepare('INSERT INTO task_menu_associations (task_id, menu_id) VALUES (?, ?)').run(id, -2);
-      } else {
+      } else if (!isTodayTask && existingAssociation) {
         db.prepare('DELETE FROM task_menu_associations WHERE task_id = ? AND menu_id = ?').run(id, -2);
       }
     }

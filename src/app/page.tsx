@@ -82,10 +82,22 @@ export default function TodoList() {
 
   useEffect(() => {
     if (selectedTask) {
-      fetchTaskDetail(selectedTask.id);
-      setSelectedColor(selectedTask.color_tag || null);
-      setRemindMe(selectedTask.remind_me || null);
-      fetchTaskSteps(selectedTask.id);
+      const fetchDetails = async () => {
+        const response = await fetch(`/api/tasks?taskId=${selectedTask.id}`);
+        const data = await response.json();
+        setTaskDetailInput(data.remarks || '');
+        setSelectedColor(data.color_tag || null);
+        setRemindMe(data.remind_me || null);
+        // Check if the task is part of 'Today's Tasks'
+        const todayTaskResponse = await fetch(`/api/tasks?today=true`);
+        const todayTasks = await todayTaskResponse.json();
+        const isToday = todayTasks.some((task: Task) => task.id === selectedTask.id);
+        // Only update selectedTask if there is a change
+        if (selectedTask.isTodayTask !== isToday) {
+          setSelectedTask(prev => prev ? { ...prev, isTodayTask: isToday } : null);
+        }
+      };
+      fetchDetails();
     }
   }, [selectedTask]);
 
@@ -108,14 +120,6 @@ export default function TodoList() {
       data = await response.json();
     }
     setTasks(data);
-  };
-
-  const fetchTaskDetail = async (taskId: number) => {
-    const response = await fetch(`/api/tasks?taskId=${taskId}`);
-    const data = await response.json();
-    setTaskDetailInput(data.remarks || '');
-    setSelectedColor(data.color_tag || null);
-    setRemindMe(data.remind_me || null);
   };
 
   const fetchTaskSteps = async (taskId: number) => {
@@ -328,18 +332,35 @@ export default function TodoList() {
     ));
   };
 
-  // Function to add task to today's tasks
-  const addToTodayTasks = async (taskId: number) => {
-    await fetch('/api/tasks', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: taskId, isTodayTask: true }),
-    });
-
-    // Optionally update the local state if needed
+  const toggleTodayTask = async (taskId: number, isTodayTask: boolean) => {
+    // Optimistically update the local state
     setTasks(tasks.map(task => 
-      task.id === taskId ? { ...task, isTodayTask: true } : task
+      task.id === taskId ? { ...task, isTodayTask: !isTodayTask } : task
     ));
+
+    try {
+      await fetch('/api/tasks', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: taskId, isTodayTask: !isTodayTask }),
+      });
+    } catch (error) {
+      // Revert the state if the API call fails
+      setTasks(tasks.map(task => 
+        task.id === taskId ? { ...task, isTodayTask } : task
+      ));
+      console.error('Failed to update task:', error);
+    }
+
+    // Re-fetch task details to update the UI
+    const response = await fetch(`/api/tasks?taskId=${taskId}`);
+    const updatedTask = await response.json();
+    setSelectedTask(updatedTask);
+
+    // Refresh task list if 'Today's Tasks' menu is selected
+    if (selectedMenu === -2) {
+      fetchTasks(selectedMenu);
+    }
   };
 
   return (
@@ -942,13 +963,21 @@ export default function TodoList() {
                     </Box>
 
                     <Button
-                      variant="outlined"
-                      color="primary"
-                      onClick={() => addToTodayTasks(selectedTask.id)}
+                      variant={selectedTask?.isTodayTask ? 'contained' : 'outlined'}
+                      {...(selectedTask?.isTodayTask ? { color: 'primary' } : {})}
+                      onClick={() => toggleTodayTask(selectedTask.id, selectedTask.isTodayTask ?? false)}
                       size="small"
-                      sx={{ mt: 0.5, width: '33%' }}
+                      sx={{
+                        mt: 0.5,
+                        width: '33%',
+                        color: selectedTask?.isTodayTask ? 'white' : 'grey',
+                        borderColor: selectedTask?.isTodayTask ? 'primary.main' : 'grey.400',
+                        '&:hover': {
+                          backgroundColor: selectedTask?.isTodayTask ? 'primary.dark' : 'grey.100',
+                        },
+                      }}
                     >
-                      加入今日任务
+                      {selectedTask?.isTodayTask ? '已加入今日任务' : '加入今日任务'}
                     </Button>
 
                     {/* Remind Me Date-Time Picker */}
