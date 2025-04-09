@@ -33,6 +33,7 @@ interface Task {
   remind_me?: string;
   steps?: TaskStep[];
   importance?: boolean;
+  isTodayTask?: boolean;
 }
 
 export default function TodoList() {
@@ -324,6 +325,20 @@ export default function TodoList() {
 
     setTasks(tasks.map(task => 
       task.id === taskId ? { ...task, importance: !currentImportance } : task
+    ));
+  };
+
+  // Function to add task to today's tasks
+  const addToTodayTasks = async (taskId: number) => {
+    await fetch('/api/tasks', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: taskId, isTodayTask: true }),
+    });
+
+    // Optionally update the local state if needed
+    setTasks(tasks.map(task => 
+      task.id === taskId ? { ...task, isTodayTask: true } : task
     ));
   };
 
@@ -735,33 +750,31 @@ export default function TodoList() {
                           {selectedTask.text}
                         </Typography>
                       )}
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <IconButton
-                          onClick={() => toggleImportance(selectedTask.id, selectedTask.importance ?? false)}
-                          size="small"
-                          sx={{
-                            color: selectedTask.importance ? '#FFD700' : 'grey',
-                            '& .MuiSvgIcon-root': {
-                              fontSize: 18,
-                            },
-                          }}
-                        >
-                          {selectedTask.importance ? <StarIcon /> : <StarBorderIcon />}
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => setSelectedTask(null)}
-                          sx={{
-                            '&:hover': {
-                              color: 'error.main'
-                            }
-                          }}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </IconButton>
-                      </Box>
+                      <IconButton
+                        onClick={() => toggleImportance(selectedTask.id, selectedTask.importance ?? false)}
+                        size="small"
+                        sx={{
+                          color: selectedTask.importance ? '#FFD700' : 'grey',
+                          '& .MuiSvgIcon-root': {
+                            fontSize: 18,
+                          },
+                        }}
+                      >
+                        {selectedTask.importance ? <StarIcon /> : <StarBorderIcon />}
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => setSelectedTask(null)}
+                        sx={{
+                          '&:hover': {
+                            color: 'error.main'
+                          }
+                        }}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </IconButton>
                     </Box>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                       {/* Task Steps Section */}
@@ -891,7 +904,7 @@ export default function TodoList() {
                     </Box>
 
                     {/* Color Tag Selection */}
-                    <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
                       {colorOptions.map((color) => (
                         <Box
                           key={color.value}
@@ -927,6 +940,16 @@ export default function TodoList() {
                         />
                       ))}
                     </Box>
+
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      onClick={() => addToTodayTasks(selectedTask.id)}
+                      size="small"
+                      sx={{ mt: 0.5, width: '33%' }}
+                    >
+                      加入今日任务
+                    </Button>
 
                     {/* Remind Me Date-Time Picker */}
                     <LocalizationProvider dateAdapter={AdapterDateFns}>

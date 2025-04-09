@@ -18,8 +18,7 @@ db.exec(`
     remarks TEXT DEFAULT NULL,
     completed BOOLEAN DEFAULT 0,
     remind_me DATETIME DEFAULT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (task_menu_id) REFERENCES task_menus(id) ON DELETE CASCADE
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
   CREATE TABLE IF NOT EXISTS task_steps (
@@ -27,8 +26,13 @@ db.exec(`
     task_id INTEGER NOT NULL,
     text TEXT NOT NULL,
     completed BOOLEAN DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS task_menu_associations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER NOT NULL,
+    menu_id INTEGER NOT NULL
   );
 `);
 
@@ -36,8 +40,21 @@ db.exec(`
 // Log SQL queries
 const originalPrepare = db.prepare;
 (db as any).prepare = function(sql: string) {
-  console.log('Executing SQL:', sql);
-  return originalPrepare.call(this, sql);
+  const statement = originalPrepare.call(this, sql);
+  return {
+    run: function(...params: any[]) {
+      console.log('Executing SQL:', sql, 'with params:', params);
+      return statement.run.apply(statement, params);
+    },
+    get: function(...params: any[]) {
+      console.log('Executing SQL:', sql, 'with params:', params);
+      return statement.get.apply(statement, params);
+    },
+    all: function(...params: any[]) {
+      console.log('Executing SQL:', sql, 'with params:', params);
+      return statement.all.apply(statement, params);
+    }
+  };
 };
 
 export default db; 

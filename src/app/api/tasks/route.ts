@@ -14,13 +14,12 @@ export async function GET(request: Request) {
     }
     
     if (today === 'true') {
-      const today = new Date().toISOString().split('T')[0];
       const tasks = db.prepare(`
-        SELECT * FROM tasks 
-        WHERE DATE(created_at) = ? 
-        OR DATE(remind_me) = ?
-        ORDER BY created_at DESC
-      `).all(today, today);
+        SELECT tasks.* FROM tasks
+        JOIN task_menu_associations ON tasks.id = task_menu_associations.task_id
+        WHERE task_menu_associations.menu_id = -2
+        ORDER BY tasks.created_at DESC
+      `).all();
       return NextResponse.json(tasks);
     }
     
@@ -66,9 +65,17 @@ export async function DELETE(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const { id, completed, remarks, color_tag, remind_me, text, importance } = await request.json();
-    if (id === undefined || (completed === undefined && remarks === undefined && color_tag === undefined && remind_me === undefined && text === undefined && importance === undefined)) {
+    const { id, completed, remarks, color_tag, remind_me, text, importance, isTodayTask } = await request.json();
+    if (id === undefined || (completed === undefined && remarks === undefined && color_tag === undefined && remind_me === undefined && text === undefined && importance === undefined && isTodayTask === undefined)) {
       return NextResponse.json({ error: 'ID and at least one field to update are required' }, { status: 400 });
+    }
+
+    if (isTodayTask !== undefined) {
+      if (isTodayTask) {
+        db.prepare('INSERT INTO task_menu_associations (task_id, menu_id) VALUES (?, ?)').run(id, -2);
+      } else {
+        db.prepare('DELETE FROM task_menu_associations WHERE task_id = ? AND menu_id = ?').run(id, -2);
+      }
     }
 
     if (completed !== undefined) {
@@ -97,6 +104,7 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error('Error executing PATCH request:', error);
     return NextResponse.json({ error: 'Failed to update task' }, { status: 500 });
   }
 } 
