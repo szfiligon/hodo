@@ -66,8 +66,8 @@ export async function DELETE(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const { id, completed, remarks, color_tag, remind_me, text } = await request.json();
-    if (id === undefined || (completed === undefined && remarks === undefined && color_tag === undefined && remind_me === undefined && text === undefined)) {
+    const { id, completed, remarks, color_tag, remind_me, text, importance } = await request.json();
+    if (id === undefined || (completed === undefined && remarks === undefined && color_tag === undefined && remind_me === undefined && text === undefined && importance === undefined)) {
       return NextResponse.json({ error: 'ID and at least one field to update are required' }, { status: 400 });
     }
 
@@ -89,6 +89,10 @@ export async function PATCH(request: Request) {
 
     if (text !== undefined) {
       db.prepare('UPDATE tasks SET text = ? WHERE id = ?').run(text, id);
+    }
+
+    if (importance !== undefined) {
+      db.prepare('UPDATE tasks SET importance = ? WHERE id = ?').run(importance ? 1 : 0, id);
     }
 
     return NextResponse.json({ success: true });

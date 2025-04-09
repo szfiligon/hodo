@@ -4,8 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { Paper, Typography, Box, TextField, List, ListItem, ListItemText, ListItemButton, ListItemIcon, IconButton, InputAdornment, Checkbox, Divider, Stack, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
+import { Paper, Typography, Box, TextField, List, ListItem, ListItemText, ListItemButton, ListItemIcon, IconButton, InputAdornment, Checkbox, Divider, Stack, Accordion, AccordionSummary, AccordionDetails, Button, Menu, MenuItem } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import StarIcon from '@mui/icons-material/Star';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
 
 interface TaskMenu {
   id: number;
@@ -30,6 +32,7 @@ interface Task {
   color_tag?: string;
   remind_me?: string;
   steps?: TaskStep[];
+  importance?: boolean;
 }
 
 export default function TodoList() {
@@ -57,11 +60,12 @@ export default function TodoList() {
   ];
 
   const colorOptions = [
-    { value: '#FFB6B6', label: '浅红' },
-    { value: '#D4A5A5', label: '浅褐' },
-    { value: '#B6C7FF', label: '浅蓝' },
-    { value: '#B6FFB6', label: '浅绿' },
-    { value: '#D4D4D4', label: '浅灰' },
+    { value: '#B22222', label: '深红色' },
+    { value: '#FF4500', label: '橙红色' },
+    { value: '#FFD700', label: '金色' },
+    { value: '#228B22', label: '森林绿' },
+    { value: '#4169E1', label: '皇家蓝' },
+    { value: '#8A2BE2', label: '紫罗兰' },
   ];
 
   useEffect(() => {
@@ -309,6 +313,18 @@ export default function TodoList() {
     if (e.key === 'Enter') {
       handleTitleBlur();
     }
+  };
+
+  const toggleImportance = async (taskId: number, currentImportance: boolean = false) => {
+    await fetch('/api/tasks', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: taskId, importance: !currentImportance }),
+    });
+
+    setTasks(tasks.map(task => 
+      task.id === taskId ? { ...task, importance: !currentImportance } : task
+    ));
   };
 
   return (
@@ -609,11 +625,26 @@ export default function TodoList() {
                         >
                           {task.text}
                         </Typography>
+                        <IconButton
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleImportance(task.id, task.importance ?? false);
+                          }}
+                          size="small"
+                          sx={{
+                            color: task.importance ? '#FFD700' : 'grey',
+                            '& .MuiSvgIcon-root': {
+                              fontSize: 18,
+                            },
+                          }}
+                        >
+                          {task.importance ? <StarIcon /> : <StarBorderIcon />}
+                        </IconButton>
                         {task.color_tag && (
                           <Box 
                             sx={{ 
-                              width: 12,
-                              height: 12,
+                              width: 16,
+                              height: 16,
                               borderRadius: '50%',
                               flexShrink: 0,
                               backgroundColor: task.color_tag
@@ -696,26 +727,41 @@ export default function TodoList() {
                             cursor: 'pointer',
                             '&:hover': {
                               color: 'primary.main'
-                            }
+                            },
+                            flex: 1
                           }}
                           onClick={handleTitleClick}
                         >
                           {selectedTask.text}
                         </Typography>
                       )}
-                      <IconButton
-                        size="small"
-                        onClick={() => setSelectedTask(null)}
-                        sx={{
-                          '&:hover': {
-                            color: 'error.main'
-                          }
-                        }}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </IconButton>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <IconButton
+                          onClick={() => toggleImportance(selectedTask.id, selectedTask.importance ?? false)}
+                          size="small"
+                          sx={{
+                            color: selectedTask.importance ? '#FFD700' : 'grey',
+                            '& .MuiSvgIcon-root': {
+                              fontSize: 18,
+                            },
+                          }}
+                        >
+                          {selectedTask.importance ? <StarIcon /> : <StarBorderIcon />}
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => setSelectedTask(null)}
+                          sx={{
+                            '&:hover': {
+                              color: 'error.main'
+                            }
+                          }}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </IconButton>
+                      </Box>
                     </Box>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                       {/* Task Steps Section */}
@@ -855,13 +901,13 @@ export default function TodoList() {
                             saveColorTag(selectedTask.id, newColor);
                           }}
                           sx={{
-                            width: 24,
-                            height: 24,
-                            border: '1px solid',
-                            borderColor: color.value,
-                            borderRadius: '4px',
+                            width: 16,
+                            height: 16,
+                            borderRadius: '50%',
                             cursor: 'pointer',
                             backgroundColor: selectedColor === color.value ? color.value : 'transparent',
+                            border: '1px solid',
+                            borderColor: color.value,
                             '&:hover': {
                               opacity: 0.8
                             },
