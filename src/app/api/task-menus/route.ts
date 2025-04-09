@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const taskMenus = db.prepare('SELECT * FROM task_menus ORDER BY created_at DESC').all();
     return NextResponse.json(taskMenus);
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Failed to fetch task menus' }, { status: 500 });
   }
 }
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
 
     const result = db.prepare('INSERT INTO task_menus (name) VALUES (?)').run(name);
     return NextResponse.json({ id: result.lastInsertRowid, name });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Failed to create task menu' }, { status: 500 });
   }
 }
@@ -33,7 +33,7 @@ export async function DELETE(request: Request) {
 
     db.prepare('DELETE FROM task_menus WHERE id = ?').run(id);
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Failed to delete task menu' }, { status: 500 });
   }
 } 

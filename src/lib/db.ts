@@ -38,24 +38,4 @@ db.exec(`
 `);
 
 
-// Log SQL queries
-const originalPrepare = db.prepare;
-(db as any).prepare = function(sql: string) {
-  const statement = originalPrepare.call(this, sql);
-  return {
-    run: function(...params: any[]) {
-      console.log('Executing SQL:', sql, 'with params:', params);
-      return statement.run.apply(statement, params);
-    },
-    get: function(...params: any[]) {
-      console.log('Executing SQL:', sql, 'with params:', params);
-      return statement.get.apply(statement, params);
-    },
-    all: function(...params: any[]) {
-      console.log('Executing SQL:', sql, 'with params:', params);
-      return statement.all.apply(statement, params);
-    }
-  };
-};
-
 export default db; 

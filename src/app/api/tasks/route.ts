@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 
     const tasks = db.prepare('SELECT * FROM tasks WHERE task_menu_id = ? ORDER BY created_at DESC').all(taskMenuId);
     return NextResponse.json(tasks);
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 });
   }
 }
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
 
     const result = db.prepare('INSERT INTO tasks (task_menu_id, text, remarks, due_date) VALUES (?, ?, ?, ?)').run(taskMenuId, text, '', due_date);
     return NextResponse.json({ id: result.lastInsertRowid, taskMenuId, text, due_date });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Failed to create task' }, { status: 500 });
   }
 }
@@ -58,7 +58,7 @@ export async function DELETE(request: Request) {
 
     db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Failed to delete task' }, { status: 500 });
   }
 }
@@ -109,8 +109,8 @@ export async function PATCH(request: Request) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Error executing PATCH request:', error);
+  } catch {
+    console.error('Error executing PATCH request:');
     return NextResponse.json({ error: 'Failed to update task' }, { status: 500 });
   }
 } 

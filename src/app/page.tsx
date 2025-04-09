@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { Paper, Typography, Box, TextField, List, ListItem, ListItemText, ListItemButton, ListItemIcon, IconButton, InputAdornment, Checkbox, Divider, Stack, Accordion, AccordionSummary, AccordionDetails, Button, Menu, MenuItem } from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { Paper, Typography, Box, TextField, List, ListItem, ListItemText, ListItemButton, ListItemIcon, IconButton, InputAdornment, Checkbox, Divider, Accordion, AccordionSummary, AccordionDetails, Button } from '@mui/material';
 import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 
@@ -57,10 +56,10 @@ export default function TodoList() {
 
   const contextMenuRef = useRef<HTMLDivElement>(null);
 
-  const fixedTaskMenus: TaskMenu[] = [
+  const fixedTaskMenus = useMemo(() => [
     { id: -1, name: '所有任务' },
     { id: -2, name: '今日任务' }
-  ];
+  ], []);
 
   const colorOptions = [
     { value: '#B22222', label: '深红色' },
@@ -71,10 +70,16 @@ export default function TodoList() {
     { value: '#8A2BE2', label: '紫罗兰' },
   ];
 
+  const fetchTaskMenus = useCallback(async () => {
+    const response = await fetch('/api/task-menus');
+    const data = await response.json();
+    setTaskMenus([...fixedTaskMenus, ...data]);
+  }, [fixedTaskMenus]);
+
   useEffect(() => {
     fetchTaskMenus();
     setTaskMenus(fixedTaskMenus);
-  }, []);
+  }, [fetchTaskMenus]);
 
   useEffect(() => {
     if (selectedMenu !== null) {
@@ -104,12 +109,6 @@ export default function TodoList() {
     }
   }, [selectedTask]);
 
-  const fetchTaskMenus = async () => {
-    const response = await fetch('/api/task-menus');
-    const data = await response.json();
-    setTaskMenus([...fixedTaskMenus, ...data]);
-  };
-
   const fetchTasks = async (menuId: number) => {
     let data;
     if (menuId === -1) {
@@ -123,12 +122,6 @@ export default function TodoList() {
       data = await response.json();
     }
     setTasks(data);
-  };
-
-  const fetchTaskSteps = async (taskId: number) => {
-    const response = await fetch(`/api/task-steps?taskId=${taskId}`);
-    const data = await response.json();
-    setTaskSteps(data);
   };
 
   const createTaskMenu = async () => {
@@ -256,10 +249,6 @@ export default function TodoList() {
       }
       return a.completed ? 1 : -1;
     });
-
-  function truncateText(text: string, maxLength: number) {
-    return text.length > maxLength ? text.slice(0, maxLength) : text;
-  }
 
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
