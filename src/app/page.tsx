@@ -363,6 +363,20 @@ export default function TodoList() {
     }
   };
 
+  useEffect(() => {
+    const fetchHelloWorld = async () => {
+      try {
+        const response = await fetch('/api/hello');
+        const data = await response.json();
+        console.log(data.message); // Log the message to the console
+      } catch (error) {
+        console.error('Error fetching hello world message:', error);
+      }
+    };
+
+    fetchHelloWorld();
+  }, []);
+
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 text-gray-800">

@@ -6,10 +6,52 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "electron": "electron .",
+    "dist": "electron-builder",
+    "rebuild": "electron-rebuild -f -w better-sqlite3"
   },
+  "build": {
+    "asar": true,
+    "executableName": "NextJSElectron",
+    "appId": "com.saybackend.nextjs-electron",
+    "asarUnpack": [
+      "node_modules/next",
+      "node_modules/@img",
+      "node_modules/sharp",
+      "**\\*.{node,dll}"
+    ],
+    "files": [
+      "build",
+      "main.js",
+      {
+        "from": ".next/standalone",
+        "to": "app",
+        "filter": [
+          "!**/.env",
+          "!**/package.json"
+        ]
+      },
+      {
+        "from": ".next/static",
+        "to": "app/.next/static"
+      },
+      {
+        "from": "public",
+        "to": "app/public"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    }
+  },
+  "main": "main.js",
+  "homepage": "./",
   "dependencies": {
     "@date-io/date-fns": "^2.17.0",
+    "@electron-toolkit/utils": "^4.0.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^7.0.1",
@@ -18,7 +60,11 @@
     "@types/sqlite3": "^3.1.11",
     "better-sqlite3": "^11.9.1",
     "date-fns": "^2.30.0",
-    "next": "15.2.4",
+    "electron-is-dev": "^3.0.1",
+    "electron-log": "^5.3.3",
+    "fs-extra": "^11.3.0",
+    "get-port-please": "^3.1.2",
+    "next": "^15.2.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "sqlite": "^5.1.1",
@@ -31,6 +77,8 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "electron": "^35.1.5",
+    "electron-builder": "^26.0.12",
     "eslint": "^9",
     "eslint-config-next": "15.2.4",
     "tailwindcss": "^4",
