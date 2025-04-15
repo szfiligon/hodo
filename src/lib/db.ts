@@ -35,7 +35,8 @@ try {
       completed BOOLEAN DEFAULT 0,
       remind_me DATETIME DEFAULT NULL,
       due_date DATETIME DEFAULT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      importance BOOLEAN DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS task_steps (

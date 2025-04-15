@@ -245,9 +245,9 @@ export default function TodoList() {
     .filter(task => task.text.toLowerCase().includes(searchQuery.toLowerCase()))
     .sort((a, b) => {
       if (a.completed === b.completed) {
-        return b.id - a.id; // Assuming `id` is a proxy for creation time
+        return 0; // Maintain original order for tasks with the same completion status
       }
-      return a.completed ? 1 : -1;
+      return a.completed ? 1 : -1; // Move completed tasks to the end
     });
 
   const handleTaskClick = (task: Task) => {
@@ -647,60 +647,63 @@ export default function TodoList() {
                         flex: 1,
                         minWidth: 0
                       }}>
-                        <Checkbox
-                          checked={task.completed}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            toggleTask(task.id, task.completed);
-                          }}
-                          size="small"
-                          sx={{
-                            p: 0.5,
-                            '& .MuiSvgIcon-root': {
-                              fontSize: 20
-                            }
-                          }}
-                        />
-                        <Typography
-                          sx={{
-                            flex: 1,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            textDecoration: task.completed ? 'line-through' : 'none',
-                            color: task.completed ? 'text.secondary' : 'text.primary',
-                            fontSize: '14px',
-                            fontWeight: selectedTask?.id === task.id ? 500 : 400
-                          }}
-                        >
-                          {task.text}
-                        </Typography>
-                        <IconButton
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleImportance(task.id, task.importance ?? false);
-                          }}
-                          size="small"
-                          sx={{
-                            color: task.importance ? '#FFD700' : 'grey',
-                            '& .MuiSvgIcon-root': {
-                              fontSize: 18,
-                            },
-                          }}
-                        >
-                          {task.importance ? <StarIcon /> : <StarBorderIcon />}
-                        </IconButton>
-                        {task.color_tag && (
-                          <Box 
-                            sx={{ 
-                              width: 16,
-                              height: 16,
-                              borderRadius: '50%',
-                              flexShrink: 0,
-                              backgroundColor: task.color_tag
+                        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                          <Checkbox
+                            checked={task.completed}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              toggleTask(task.id, task.completed);
+                            }}
+                            size="small"
+                            sx={{
+                              p: 0.5,
+                              '& .MuiSvgIcon-root': {
+                                fontSize: 20
+                              }
                             }}
                           />
-                        )}
+                          <Typography
+                            sx={{
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              textDecoration: task.completed ? 'line-through' : 'none',
+                              color: task.completed ? 'text.secondary' : 'text.primary',
+                              fontSize: '14px',
+                              fontWeight: selectedTask?.id === task.id ? 500 : 400
+                            }}
+                          >
+                            {task.text}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
+                          <IconButton
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleImportance(task.id, task.importance ?? false);
+                            }}
+                            size="small"
+                            sx={{
+                              color: task.importance ? 'red' : 'grey',
+                              '& .MuiSvgIcon-root': {
+                                fontSize: 18,
+                              },
+                            }}
+                          >
+                            {task.importance ? <StarIcon /> : <StarBorderIcon />}
+                          </IconButton>
+                          {task.color_tag && (
+                            <Box 
+                              sx={{ 
+                                width: 16,
+                                height: 16,
+                                borderRadius: '50%',
+                                flexShrink: 0,
+                                backgroundColor: task.color_tag
+                              }}
+                            />
+                          )}
+                        </Box>
                       </Box>
                       <IconButton
                         size="small"
@@ -789,7 +792,7 @@ export default function TodoList() {
                         onClick={() => toggleImportance(selectedTask.id, selectedTask.importance ?? false)}
                         size="small"
                         sx={{
-                          color: selectedTask.importance ? '#FFD700' : 'grey',
+                          color: selectedTask.importance ? 'red' : 'grey',
                           '& .MuiSvgIcon-root': {
                             fontSize: 18,
                           },
@@ -991,7 +994,7 @@ export default function TodoList() {
                         },
                       }}
                     >
-                      {selectedTask?.isTodayTask ? '已加入今日任务' : '加入今日任务'}
+                      {selectedTask?.isTodayTask ? '已加入今日任务' : '今日任务'}
                     </Button>
 
                     {/* Remind Me Date-Time Picker */}

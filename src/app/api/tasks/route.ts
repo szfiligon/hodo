@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     const today = searchParams.get('today');
     
     if (taskId) {
-      const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
+      const task = db.prepare('SELECT * FROM tasks WHERE id = ? ORDER BY importance DESC, created_at DESC').get(taskId);
       return NextResponse.json(task);
     }
     
@@ -18,17 +18,17 @@ export async function GET(request: Request) {
         SELECT tasks.* FROM tasks
         JOIN task_menu_associations ON tasks.id = task_menu_associations.task_id
         WHERE task_menu_associations.menu_id = -2
-        ORDER BY tasks.created_at DESC
+        ORDER BY tasks.importance DESC, tasks.created_at DESC
       `).all();
       return NextResponse.json(tasks);
     }
     
     if (!taskMenuId) {
-      const tasks = db.prepare('SELECT * FROM tasks ORDER BY created_at DESC').all();
+      const tasks = db.prepare('SELECT * FROM tasks ORDER BY importance DESC, created_at DESC').all();
       return NextResponse.json(tasks);
     }
 
-    const tasks = db.prepare('SELECT * FROM tasks WHERE task_menu_id = ? ORDER BY created_at DESC').all(taskMenuId);
+    const tasks = db.prepare('SELECT * FROM tasks WHERE task_menu_id = ? ORDER BY importance DESC, created_at DESC').all(taskMenuId);
     return NextResponse.json(tasks);
   } catch (error) {
     console.error('Error in GET request:', error);
