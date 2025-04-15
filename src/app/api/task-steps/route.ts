@@ -36,7 +36,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'ID and completed status are required' }, { status: 400 });
   }
 
-  db.prepare('UPDATE task_steps SET completed = ? WHERE id = ?').run(completed, id);
+  db.prepare('UPDATE task_steps SET completed = ? WHERE id = ?').run(completed ? 1 : 0, id);
   return NextResponse.json({ success: true });
 }
 

@@ -90,19 +90,32 @@ export default function TodoList() {
   useEffect(() => {
     if (selectedTask) {
       const fetchDetails = async () => {
-        const response = await fetch(`/api/tasks?taskId=${selectedTask.id}`);
-        const data = await response.json();
-        setTaskDetailInput(data.remarks || '');
-        setSelectedColor(data.color_tag || null);
-        setRemindMe(data.remind_me || null);
-        setDueDate(data.due_date || null);
-        // Check if the task is part of 'Today's Tasks'
-        const todayTaskResponse = await fetch(`/api/tasks?today=true`);
-        const todayTasks = await todayTaskResponse.json();
-        const isToday = todayTasks.some((task: Task) => task.id === selectedTask.id);
-        // Only update selectedTask if there is a change
-        if (selectedTask.isTodayTask !== isToday) {
-          setSelectedTask(prev => prev ? { ...prev, isTodayTask: isToday } : null);
+        try {
+          const response = await fetch(`/api/tasks?taskId=${selectedTask.id}`);
+          if (!response.ok) throw new Error('Failed to fetch task details');
+          const data = await response.json();
+          setTaskDetailInput(data.remarks || '');
+          setSelectedColor(data.color_tag || null);
+          setRemindMe(data.remind_me || null);
+          setDueDate(data.due_date || null);
+
+          // Fetch task steps from the dedicated endpoint
+          const stepsResponse = await fetch(`/api/task-steps?taskId=${selectedTask.id}`);
+          if (!stepsResponse.ok) throw new Error('Failed to fetch task steps');
+          const stepsData = await stepsResponse.json();
+          setTaskSteps(stepsData || []);
+
+          // Check if the task is part of 'Today's Tasks'
+          const todayTaskResponse = await fetch(`/api/tasks?today=true`);
+          if (!todayTaskResponse.ok) throw new Error('Failed to fetch today tasks');
+          const todayTasks = await todayTaskResponse.json();
+          const isToday = todayTasks.some((task: Task) => task.id === selectedTask.id);
+          // Only update selectedTask if there is a change
+          if (selectedTask.isTodayTask !== isToday) {
+            setSelectedTask(prev => prev ? { ...prev, isTodayTask: isToday } : null);
+          }
+        } catch (error) {
+          console.error('Error fetching task details:', error);
         }
       };
       fetchDetails();
