@@ -333,16 +333,37 @@ export default function TodoList() {
     }
   };
 
-  const toggleImportance = async (taskId: number, currentImportance: boolean = false) => {
-    await fetch('/api/tasks', {
+  const toggleImportance = (taskId: number, currentImportance: boolean = false) => {
+    console.log(`Toggling importance for task ID: ${taskId}, current importance: ${currentImportance}`);
+    // Optimistically update the local state
+    setTasks(tasks.map(task => {
+      const updatedTask = task.id === taskId ? { ...task, importance: !currentImportance } : task;
+      if (task.id === taskId) {
+        console.log('Updated task:', updatedTask);
+      }
+      return updatedTask;
+    }));
+
+    // Perform the API call in the background
+    fetch('/api/tasks', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: taskId, importance: !currentImportance }),
+    }).then(() => {
+      // Re-fetch task details to update the details view
+      if (selectedTask && selectedTask.id === taskId) {
+        fetch(`/api/tasks?taskId=${taskId}`)
+          .then(response => response.json())
+          .then(data => setSelectedTask(data))
+          .catch(error => console.error('Failed to re-fetch task details:', error));
+      }
+    }).catch(error => {
+      console.error('Failed to update task importance:', error);
+      // Optionally revert the state if the API call fails
+      setTasks(tasks.map(task => 
+        task.id === taskId ? { ...task, importance: currentImportance } : task
+      ));
     });
-
-    setTasks(tasks.map(task => 
-      task.id === taskId ? { ...task, importance: !currentImportance } : task
-    ));
   };
 
   const toggleTodayTask = async (taskId: number, isTodayTask: boolean) => {
