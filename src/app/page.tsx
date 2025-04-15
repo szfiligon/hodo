@@ -426,7 +426,7 @@ export default function TodoList() {
   }, []);
 
   const handleColorTagClick = (color: string | null) => {
-    const newColor: string | null = selectedColor === color ? null : color;
+    const newColor: string | null = selectedColor === color ? 'white' : color;
     setSelectedColor(newColor);
     if (selectedTask) {
       saveColorTag(selectedTask.id, newColor || undefined);
@@ -750,7 +750,7 @@ export default function TodoList() {
                               {task.importance ? <StarIcon /> : <StarBorderIcon />}
                             </IconButton>
                             <Box sx={{ width: '4px' }} />
-                            {task.color_tag && (
+                            {task.color_tag && task.color_tag !== 'white' && (
                               <Box 
                                 sx={{ 
                                   width: 16,

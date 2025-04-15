@@ -96,7 +96,8 @@ export async function PATCH(request: Request) {
     }
 
     if (color_tag !== undefined) {
-      db.prepare('UPDATE tasks SET color_tag = ? WHERE id = ?').run(color_tag, id);
+      const newColorTag = color_tag || 'white';
+      db.prepare('UPDATE tasks SET color_tag = ? WHERE id = ?').run(newColorTag, id);
     }
 
     if (remind_me !== undefined) {
