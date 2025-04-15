@@ -275,12 +275,26 @@ export default function TodoList() {
     });
   };
 
-  const saveColorTag = async (taskId: number, color: string | null) => {
-    await fetch('/api/tasks', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: taskId, color_tag: color }),
-    });
+  const saveColorTag = async (taskId: number, color: string | undefined) => {
+    try {
+      await fetch('/api/tasks', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: taskId, color_tag: color }),
+      });
+
+      // Update the task in the global state
+      setTasks(tasks.map(task => 
+        task.id === taskId ? { ...task, color_tag: color } : task
+      ));
+
+      // Update the selected task if it matches
+      if (selectedTask && selectedTask.id === taskId) {
+        setSelectedTask({ ...selectedTask, color_tag: color });
+      }
+    } catch (error) {
+      console.error('Failed to update color tag:', error);
+    }
   };
 
   const saveRemindMe = async (taskId: number, remindMe: string | null) => {
@@ -410,6 +424,14 @@ export default function TodoList() {
 
     fetchHelloWorld();
   }, []);
+
+  const handleColorTagClick = (color: string | null) => {
+    const newColor: string | null = selectedColor === color ? null : color;
+    setSelectedColor(newColor);
+    if (selectedTask) {
+      saveColorTag(selectedTask.id, newColor || undefined);
+    }
+  };
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -993,11 +1015,7 @@ export default function TodoList() {
                       {colorOptions.map((color) => (
                         <Box
                           key={color.value}
-                          onClick={() => {
-                            const newColor = selectedColor === color.value ? null : color.value;
-                            setSelectedColor(newColor);
-                            saveColorTag(selectedTask.id, newColor);
-                          }}
+                          onClick={() => handleColorTagClick(color.value)}
                           sx={{
                             width: 16,
                             height: 16,
