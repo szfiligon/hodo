@@ -676,33 +676,45 @@ export default function TodoList() {
                             {task.text}
                           </Typography>
                         </Box>
-                        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
-                          <IconButton
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleImportance(task.id, task.importance ?? false);
-                            }}
-                            size="small"
-                            sx={{
-                              color: task.importance ? 'red' : 'grey',
-                              '& .MuiSvgIcon-root': {
-                                fontSize: 18,
-                              },
-                            }}
-                          >
-                            {task.importance ? <StarIcon /> : <StarBorderIcon />}
-                          </IconButton>
-                          {task.color_tag && (
-                            <Box 
-                              sx={{ 
-                                width: 16,
-                                height: 16,
-                                borderRadius: '50%',
-                                flexShrink: 0,
-                                backgroundColor: task.color_tag
+                        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                            <IconButton
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleImportance(task.id, task.importance ?? false);
                               }}
-                            />
-                          )}
+                              size="small"
+                              sx={{
+                                color: task.importance ? 'red' : 'grey',
+                                '& .MuiSvgIcon-root': {
+                                  fontSize: 18,
+                                },
+                              }}
+                            >
+                              {task.importance ? <StarIcon /> : <StarBorderIcon />}
+                            </IconButton>
+                            {task.color_tag && (
+                              <Box 
+                                sx={{ 
+                                  width: 16,
+                                  height: 16,
+                                  borderRadius: '50%',
+                                  flexShrink: 0,
+                                  backgroundColor: task.color_tag
+                                }}
+                              />
+                            )}
+                          </Box>
+                          <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
+                            <Typography
+                              sx={{
+                                fontSize: '14px',
+                                color: 'text.secondary',
+                              }}
+                            >
+                              {task.due_date ? new Date(task.due_date).toLocaleString('default', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : ''}
+                            </Typography>
+                          </Box>
                         </Box>
                       </Box>
                       <IconButton
