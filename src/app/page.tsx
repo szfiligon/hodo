@@ -693,6 +693,7 @@ export default function TodoList() {
                             >
                               {task.importance ? <StarIcon /> : <StarBorderIcon />}
                             </IconButton>
+                            <Box sx={{ width: '4px' }} />
                             {task.color_tag && (
                               <Box 
                                 sx={{ 
