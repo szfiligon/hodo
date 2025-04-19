@@ -18,7 +18,7 @@ export async function GET(request: Request) {
       const tasks = db.prepare(`
         SELECT tasks.* FROM tasks
         JOIN task_menu_associations ON tasks.id = task_menu_associations.task_id
-        WHERE task_menu_associations.menu_id = -2
+        WHERE task_menu_associations.menu_id = '-2'
         ORDER BY tasks.importance DESC, tasks.created_at DESC
       `).all();
       return NextResponse.json(tasks);
@@ -83,7 +83,8 @@ export async function PATCH(request: Request) {
       const existingAssociation = db.prepare('SELECT 1 FROM task_menu_associations WHERE task_id = ? AND menu_id = ?').get(id, -2);
 
       if (isTodayTask && !existingAssociation) {
-        db.prepare('INSERT INTO task_menu_associations (task_id, menu_id) VALUES (?, ?)').run(id, -2);
+        const associationId = uuidv4();
+        db.prepare('INSERT INTO task_menu_associations (id, task_id, menu_id) VALUES (?, ?, ?)').run(associationId, id, -2);
       } else if (!isTodayTask && existingAssociation) {
         db.prepare('DELETE FROM task_menu_associations WHERE task_id = ? AND menu_id = ?').run(id, -2);
       }
