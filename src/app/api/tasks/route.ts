@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
+import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(request: Request) {
   try {
@@ -43,8 +44,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Task menu ID and text are required' }, { status: 400 });
     }
 
-    const result = db.prepare('INSERT INTO tasks (task_menu_id, text, remarks, due_date) VALUES (?, ?, ?, ?)').run(taskMenuId.toString(), text, '', due_date);
-    return NextResponse.json({ id: result.lastInsertRowid.toString(), taskMenuId: taskMenuId.toString(), text, due_date });
+    const id = uuidv4();
+    const result = db.prepare('INSERT INTO tasks (id, task_menu_id, text, remarks, due_date) VALUES (?, ?, ?, ?, ?)').run(id, taskMenuId, text, '', due_date);
+    return NextResponse.json({ id, taskMenuId, text, due_date });
   } catch (error) {
     console.error('Error in POST request:', error);
     return NextResponse.json({ error: 'Failed to create task' }, { status: 500 });

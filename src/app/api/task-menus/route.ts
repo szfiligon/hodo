@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
+import { v4 as uuidv4 } from 'uuid';
 
 export async function GET() {
   try {
@@ -17,8 +18,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
 
-    const result = db.prepare('INSERT INTO task_menus (name) VALUES (?)').run(name);
-    return NextResponse.json({ id: result.lastInsertRowid, name });
+    const id = uuidv4();
+    db.prepare('INSERT INTO task_menus (id, name) VALUES (?, ?)').run(id, name);
+    return NextResponse.json({ id, name });
   } catch {
     return NextResponse.json({ error: 'Failed to create task menu' }, { status: 500 });
   }
@@ -31,7 +33,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     }
 
-    db.prepare('DELETE FROM task_menus WHERE id = ?').run(id);
+    db.prepare('DELETE FROM task_menus WHERE id = ?').run(id.toString());
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: 'Failed to delete task menu' }, { status: 500 });

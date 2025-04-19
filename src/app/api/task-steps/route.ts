@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
+import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -20,12 +21,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Task ID and text are required' }, { status: 400 });
   }
 
-  const result = db.prepare(`
-    INSERT INTO task_steps (task_id, text)
-    VALUES (?, ?)
-  `).run(taskId, text);
+  const id = uuidv4();
+  db.prepare(`
+    INSERT INTO task_steps (id, task_id, text)
+    VALUES (?, ?, ?)
+  `).run(id, taskId, text);
 
-  const step = db.prepare('SELECT * FROM task_steps WHERE id = ?').get(result.lastInsertRowid);
+  const step = db.prepare('SELECT * FROM task_steps WHERE id = ?').get(id);
   return NextResponse.json(step);
 }
 
@@ -47,6 +49,6 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'ID is required' }, { status: 400 });
   }
 
-  db.prepare('DELETE FROM task_steps WHERE id = ?').run(id);
+  db.prepare('DELETE FROM task_steps WHERE id = ?').run(id.toString());
   return NextResponse.json({ success: true });
 } 
