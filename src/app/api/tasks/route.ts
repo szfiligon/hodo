@@ -43,8 +43,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Task menu ID and text are required' }, { status: 400 });
     }
 
-    const result = db.prepare('INSERT INTO tasks (task_menu_id, text, remarks, due_date) VALUES (?, ?, ?, ?)').run(taskMenuId, text, '', due_date);
-    return NextResponse.json({ id: result.lastInsertRowid, taskMenuId, text, due_date });
+    const result = db.prepare('INSERT INTO tasks (task_menu_id, text, remarks, due_date) VALUES (?, ?, ?, ?)').run(taskMenuId.toString(), text, '', due_date);
+    return NextResponse.json({ id: result.lastInsertRowid.toString(), taskMenuId: taskMenuId.toString(), text, due_date });
   } catch (error) {
     console.error('Error in POST request:', error);
     return NextResponse.json({ error: 'Failed to create task' }, { status: 500 });
@@ -58,7 +58,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     }
 
-    db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
+    db.prepare('DELETE FROM tasks WHERE id = ?').run(id.toString());
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error in DELETE request:', error);
@@ -74,7 +74,7 @@ export async function PATCH(request: Request) {
     }
 
     if (due_date !== undefined) {
-      db.prepare('UPDATE tasks SET due_date = ? WHERE id = ?').run(due_date, id);
+      db.prepare('UPDATE tasks SET due_date = ? WHERE id = ?').run(due_date, id.toString());
     }
 
     if (isTodayTask !== undefined) {
@@ -88,28 +88,28 @@ export async function PATCH(request: Request) {
     }
 
     if (completed !== undefined) {
-      db.prepare('UPDATE tasks SET completed = ? WHERE id = ?').run(completed ? 1 : 0, id);
+      db.prepare('UPDATE tasks SET completed = ? WHERE id = ?').run(completed ? 1 : 0, id.toString());
     }
 
     if (remarks !== undefined) {
-      db.prepare('UPDATE tasks SET remarks = ? WHERE id = ?').run(remarks, id);
+      db.prepare('UPDATE tasks SET remarks = ? WHERE id = ?').run(remarks, id.toString());
     }
 
     if (color_tag !== undefined) {
       const newColorTag = color_tag || 'white';
-      db.prepare('UPDATE tasks SET color_tag = ? WHERE id = ?').run(newColorTag, id);
+      db.prepare('UPDATE tasks SET color_tag = ? WHERE id = ?').run(newColorTag, id.toString());
     }
 
     if (remind_me !== undefined) {
-      db.prepare('UPDATE tasks SET remind_me = ? WHERE id = ?').run(remind_me, id);
+      db.prepare('UPDATE tasks SET remind_me = ? WHERE id = ?').run(remind_me, id.toString());
     }
 
     if (text !== undefined) {
-      db.prepare('UPDATE tasks SET text = ? WHERE id = ?').run(text, id);
+      db.prepare('UPDATE tasks SET text = ? WHERE id = ?').run(text, id.toString());
     }
 
     if (importance !== undefined) {
-      db.prepare('UPDATE tasks SET importance = ? WHERE id = ?').run(importance ? 1 : 0, id);
+      db.prepare('UPDATE tasks SET importance = ? WHERE id = ?').run(importance ? 1 : 0, id.toString());
     }
 
     return NextResponse.json({ success: true });

@@ -9,21 +9,21 @@ import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 
 interface TaskMenu {
-  id: number;
+  id: string;
   name: string;
 }
 
 interface TaskStep {
-  id: number;
-  task_id: number;
+  id: string;
+  task_id: string;
   text: string;
   completed: boolean;
   created_at: string;
 }
 
 interface Task {
-  id: number;
-  task_menu_id: number;
+  id: string;
+  task_menu_id: string;
   text: string;
   created_at: string;
   completed: boolean;
@@ -38,12 +38,12 @@ interface Task {
 
 export default function TodoList() {
   const [taskMenus, setTaskMenus] = useState<TaskMenu[]>([]);
-  const [selectedMenu, setSelectedMenu] = useState<number | null>(null);
+  const [selectedMenu, setSelectedMenu] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [newMenuName, setNewMenuName] = useState('');
   const [newTaskText, setNewTaskText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; type: 'menu' | 'task'; id: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; type: 'menu' | 'task'; id: string } | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [taskDetailInput, setTaskDetailInput] = useState('');
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
@@ -57,8 +57,8 @@ export default function TodoList() {
   const contextMenuRef = useRef<HTMLDivElement>(null);
 
   const fixedTaskMenus = useMemo(() => [
-    { id: -1, name: '所有任务' },
-    { id: -2, name: '今日任务' }
+    { id: '-1', name: '所有任务' },
+    { id: '-2', name: '今日任务' }
   ], []);
 
   const colorOptions = [
@@ -122,12 +122,12 @@ export default function TodoList() {
     }
   }, [selectedTask]);
 
-  const fetchTasks = async (menuId: number) => {
+  const fetchTasks = async (menuId: string) => {
     let data;
-    if (menuId === -1) {
+    if (menuId === '-1') {
       const response = await fetch('/api/tasks');
       data = await response.json();
-    } else if (menuId === -2) {
+    } else if (menuId === '-2') {
       const response = await fetch('/api/tasks?today=true');
       data = await response.json();
     } else {
@@ -179,7 +179,7 @@ export default function TodoList() {
     setNewStepText('');
   };
 
-  const deleteTaskMenu = async (id: number) => {
+  const deleteTaskMenu = async (id: string) => {
     await fetch('/api/task-menus', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -193,7 +193,7 @@ export default function TodoList() {
     }
   };
 
-  const deleteTask = async (id: number) => {
+  const deleteTask = async (id: string) => {
     await fetch('/api/tasks', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -203,7 +203,7 @@ export default function TodoList() {
     setTasks(tasks.filter(task => task.id !== id));
   };
 
-  const toggleTask = async (id: number, completed: boolean) => {
+  const toggleTask = async (id: string, completed: boolean) => {
     await fetch('/api/tasks', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -215,7 +215,7 @@ export default function TodoList() {
     ));
   };
 
-  const toggleTaskStep = async (stepId: number, completed: boolean) => {
+  const toggleTaskStep = async (stepId: string, completed: boolean) => {
     await fetch('/api/task-steps', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -227,7 +227,7 @@ export default function TodoList() {
     ));
   };
 
-  const deleteTaskStep = async (stepId: number) => {
+  const deleteTaskStep = async (stepId: string) => {
     await fetch('/api/task-steps', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -237,9 +237,9 @@ export default function TodoList() {
     setTaskSteps(taskSteps.filter(step => step.id !== stepId));
   };
 
-  const handleContextMenu = (e: React.MouseEvent, type: 'menu' | 'task', id: number) => {
+  const handleContextMenu = (e: React.MouseEvent, type: 'menu' | 'task', id: string) => {
     e.preventDefault();
-    if (type === 'menu' && id === -1) return;
+    if (type === 'menu' && id === '-1') return;
     setContextMenu({ x: e.clientX, y: e.clientY, type, id });
   };
 
@@ -267,7 +267,7 @@ export default function TodoList() {
     setSelectedTask(task);
   };
 
-  const saveTaskDetail = async (taskId: number, detail: string) => {
+  const saveTaskDetail = async (taskId: string, detail: string) => {
     await fetch('/api/tasks', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -275,7 +275,7 @@ export default function TodoList() {
     });
   };
 
-  const saveColorTag = async (taskId: number, color: string | undefined) => {
+  const saveColorTag = async (taskId: string, color: string | undefined) => {
     try {
       await fetch('/api/tasks', {
         method: 'PATCH',
@@ -297,7 +297,7 @@ export default function TodoList() {
     }
   };
 
-  const saveRemindMe = async (taskId: number, remindMe: string | null) => {
+  const saveRemindMe = async (taskId: string, remindMe: string | null) => {
     await fetch('/api/tasks', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -305,7 +305,7 @@ export default function TodoList() {
     });
   };
 
-  const saveDueDate = async (taskId: number, dueDate: string | null) => {
+  const saveDueDate = async (taskId: string, dueDate: string | null) => {
     await fetch('/api/tasks', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -347,7 +347,7 @@ export default function TodoList() {
     }
   };
 
-  const toggleImportance = (taskId: number, currentImportance: boolean = false) => {
+  const toggleImportance = (taskId: string, currentImportance: boolean = false) => {
     console.log(`Toggling importance for task ID: ${taskId}, current importance: ${currentImportance}`);
     // Optimistically update the local state
     setTasks(tasks.map(task => {
@@ -380,7 +380,7 @@ export default function TodoList() {
     });
   };
 
-  const toggleTodayTask = async (taskId: number, isTodayTask: boolean) => {
+  const toggleTodayTask = async (taskId: string, isTodayTask: boolean) => {
     // Optimistically update the local state
     setTasks(tasks.map(task => 
       task.id === taskId ? { ...task, isTodayTask: !isTodayTask } : task
@@ -406,8 +406,8 @@ export default function TodoList() {
     setSelectedTask(updatedTask);
 
     // Refresh task list if 'Today's Tasks' menu is selected
-    if (selectedMenu === -2) {
-      fetchTasks(selectedMenu);
+    if (selectedMenu === '-2') {
+      fetchTasks('-2');
     }
   };
 
@@ -535,7 +535,7 @@ export default function TodoList() {
               ))}
               <Divider sx={{ my: 1 }} />
               {/* User-defined Task Menus */}
-              {taskMenus.filter(menu => menu.id >= 0).map(menu => (
+              {taskMenus.filter(menu => menu.id >= '0').map(menu => (
                 <ListItem
                   key={menu.id}
                   onClick={() => setSelectedMenu(menu.id)}
