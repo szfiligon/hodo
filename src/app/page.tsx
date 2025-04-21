@@ -4,9 +4,11 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { Paper, Typography, Box, TextField, List, ListItem, ListItemText, ListItemButton, ListItemIcon, IconButton, InputAdornment, Checkbox, Divider, Accordion, AccordionSummary, AccordionDetails, Button } from '@mui/material';
+import { Paper, Typography, Box, TextField, List, ListItem, ListItemText, ListItemButton, ListItemIcon, IconButton, InputAdornment, Checkbox, Divider, Accordion, AccordionSummary, AccordionDetails, Button, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
+import LoginDialog from './components/LoginDialog';
+import UserInfo from './components/UserInfo';
 
 interface TaskMenu {
   id: string;
@@ -53,8 +55,13 @@ export default function TodoList() {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   const [dueDate, setDueDate] = useState<string | null>(null);
+  const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
 
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const userInfoRef = useRef<{ refresh: () => Promise<void> }>(null);
 
   const fixedTaskMenus = useMemo(() => [
     { id: '-1', name: '所有任务' },
@@ -433,6 +440,24 @@ export default function TodoList() {
     }
   };
 
+  const handleLoginClick = () => {
+    setIsLoginDialogOpen(true);
+  };
+
+  const handleLoginClose = () => {
+    setIsLoginDialogOpen(false);
+  };
+
+  const handleLoginSubmit = async (username: string, password: string) => {
+    // Implement login logic here
+    // For now, just set the current user
+    setCurrentUser(username);
+  };
+
+  const handleUserUpdate = () => {
+    userInfoRef.current?.refresh();
+  };
+
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 text-gray-800">
@@ -588,6 +613,7 @@ export default function TodoList() {
                 </ListItem>
               ))}
             </List>
+            <UserInfo ref={userInfoRef} onLoginClick={handleLoginClick} />
           </Paper>
 
           {/* Right Pane - Tasks */}
@@ -1180,6 +1206,13 @@ export default function TodoList() {
             </button>
           </div>
         )}
+
+        <LoginDialog
+          open={isLoginDialogOpen}
+          onClose={handleLoginClose}
+          onLogin={handleLoginSubmit}
+          onUserUpdate={handleUserUpdate}
+        />
       </div>
     </LocalizationProvider>
   );

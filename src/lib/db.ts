@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import { existsSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 const dbPath: string = join(process.cwd(), 'db', 'todos.db');
 console.log("Database initialization started.");
@@ -52,7 +53,24 @@ try {
       task_id TEXT NOT NULL,
       menu_id TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
+
+  // Initialize default user if not exists
+  const userCount = (db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number }).count;
+  if (userCount === 0) {
+    db.prepare(`
+      INSERT INTO users (id, username, password)
+      VALUES ('${uuidv4()}', 'admin', 'admin123')
+    `).run();
+    console.log("Default user created successfully.");
+  }
 
   console.log("Database tables created or verified successfully.");
 
