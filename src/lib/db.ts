@@ -24,6 +24,7 @@ try {
     CREATE TABLE IF NOT EXISTS task_menus (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
+      user_id TEXT NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
