@@ -19,6 +19,7 @@
       "node_modules/next",
       "node_modules/@img",
       "node_modules/sharp",
+      "node_modules/better-sqlite3",
       "**\\*.{node,dll}"
     ],
     "files": [
@@ -71,6 +72,7 @@
     "uuid": "^11.1.0"
   },
   "devDependencies": {
+    "@electron/rebuild": "^3.7.2",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^7.6.13",
@@ -79,9 +81,17 @@
     "@types/react-dom": "^19",
     "electron": "^35.1.5",
     "electron-builder": "^26.0.12",
+    "electron-rebuild": "^3.2.9",
     "eslint": "^9",
     "eslint-config-next": "15.2.4",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "config": {
+    "forge": {
+      "electronRebuild": {
+        "forceABI": 133
+      }
+    }
   }
 }
