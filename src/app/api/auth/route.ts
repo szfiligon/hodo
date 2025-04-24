@@ -2,28 +2,6 @@ import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 
-// Initialize default admin user if no users exist
-export async function initializeDefaultUser() {
-  const users = db.prepare('SELECT * FROM users').all();
-  if (users.length === 0) {
-    const defaultUser = {
-      id: uuidv4(),
-      username: 'admin',
-      password: 'admin'
-    };
-    
-    db.prepare(`
-      INSERT INTO users (id, username, password)
-      VALUES (?, ?, ?)
-    `).run(defaultUser.id, defaultUser.username, defaultUser.password);
-    
-    console.log('Default admin user created');
-  }
-}
-
-// Initialize the default user when the server starts
-initializeDefaultUser().catch(console.error);
-
 // GET: Check user credentials
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
