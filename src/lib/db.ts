@@ -3,15 +3,33 @@ import { existsSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-const dbPath: string = join(process.cwd(), 'db', 'todos.db');
-console.log("Database initialization started.");
-console.log("Database path:", dbPath);
+let dbPath: string;
 
-// Create directory if it doesn't exist
+// 判断运行环境
+if (process.type === 'renderer') {
+  // 在渲染进程中
+  // @ts-ignore
+  dbPath = window.electron.getUserDataPath();
+} else if (process.type === 'browser') {
+  // 在主进程中
+  const { app } = require('electron');
+  dbPath = app.getPath('userData');
+} else {
+  // 在 Next.js API 路由中
+  dbPath = join(process.cwd(), 'db');
+}
+
+// 确保数据库目录存在
 const dir = dirname(dbPath);
 if (!existsSync(dir)) {
   mkdirSync(dir, { recursive: true });
 }
+
+// 设置数据库文件路径
+dbPath = join(dbPath, 'todos.db');
+
+console.log("Database initialization started.");
+console.log("Database path:", dbPath);
 
 let db: Database.Database;
 

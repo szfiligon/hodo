@@ -4,12 +4,20 @@ import { getPort } from "get-port-please";
 import { startServer } from "next/dist/server/lib/start-server.js";
 import { join } from "path";
 
+// 设置 IPC 处理程序
+ipcMain.handle('get-user-data-path', () => {
+  return app.getPath('userData');
+});
+
 const createWindow = () => {
   const mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
     webPreferences: {
-      nodeIntegration: true,
+      nodeIntegration: false, // 出于安全考虑设置为 false
+      contextIsolation: true, // 启用上下文隔离
+      sandbox: true, // 启用沙箱模式
+      preload: join(__dirname, '../preload/index.js') // 添加预加载脚本
     },
   });
 
@@ -18,6 +26,8 @@ const createWindow = () => {
   const loadURL = async () => {
     if (is.dev) {
       mainWindow.loadURL("http://localhost:3000");
+      // 在开发环境下打开开发者工具
+      mainWindow.webContents.openDevTools();
     } else {
       try {
         const port = await startNextJSServer();
