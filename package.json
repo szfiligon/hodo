@@ -69,7 +69,8 @@
     "react-dom": "^19.0.0",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "winston": "^3.17.0"
   },
   "devDependencies": {
     "@electron/rebuild": "^3.7.2",
