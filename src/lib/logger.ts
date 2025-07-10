@@ -11,27 +11,36 @@ function generateShortId(): string {
   return `${timestamp.slice(-4)}${random}`;
 }
 
-// 获取调用栈信息
-function getCallerInfo(): { filename: string; lineNumber: string } {
+// 从调用栈自动生成逻辑文件名
+function getLogicalFileName(): string {
   const stack = new Error().stack;
-  if (!stack) return { filename: 'unknown', lineNumber: '0' };
+  if (!stack) return 'unknown';
 
   const lines = stack.split('\n');
-  // 跳过前几行（Error、getCallerInfo、log 方法）
-  const callerLine = lines[3] || lines[lines.length - 1];
-  
-  if (callerLine) {
-    const match = callerLine.match(/at\s+(.+?)\s+\((.+):(\d+):(\d+)\)/);
-    if (match) {
-      const [, , filename, lineNumber] = match;
-      return {
-        filename: filename.split('/').pop() || filename,
-        lineNumber
-      };
+  // 查找第一个不是logger.ts的调用栈行
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line && !line.includes('logger.ts') && !line.includes('getCallerInfo') && !line.includes('log')) {
+      const match = line.match(/at\s+(.+?)\s+\((.+):(\d+):(\d+)\)/);
+      if (match) {
+        const [, , filepath] = match;
+        // 从文件路径中提取逻辑文件名
+        const pathParts = filepath.split('/');
+        const filename = pathParts[pathParts.length - 1]; // 获取文件名
+        const dirname = pathParts[pathParts.length - 2]; // 获取目录名
+        
+        // 如果是route.ts文件，使用目录名作为逻辑名
+        if (filename === 'route.ts') {
+          return dirname;
+        }
+        
+        // 否则使用文件名（去掉扩展名）
+        return filename.replace(/\.(ts|js|tsx|jsx)$/, '');
+      }
     }
   }
   
-  return { filename: 'unknown', lineNumber: '0' };
+  return 'unknown';
 }
 
 // 获取用户名（服务器端）
@@ -97,7 +106,6 @@ class Logger {
   }
 
   private async log(level: string, message: string, meta?: any) {
-    const callerInfo = getCallerInfo();
     const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
     
     // 获取用户名（如果还没有设置）
@@ -105,7 +113,10 @@ class Logger {
       this.username = await getUsername();
     }
     
-    const logMessage = `${timestamp}|${this.username}|${this.traceId}|${callerInfo.filename}|${message}`;
+    // 自动获取逻辑文件名
+    const logicalName = getLogicalFileName();
+    
+    const logMessage = `${timestamp}|${this.username}|${this.traceId}|${logicalName}|${message}`;
     
     // 使用 console 进行日志输出
     const consoleMethod = level === 'error' ? 'error' : 
