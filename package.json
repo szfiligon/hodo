@@ -1,98 +1,113 @@
 {
   "name": "hodo",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
     "electron": "electron .",
-    "dist": "electron-builder",
-    "rebuild": "electron-rebuild -f -w better-sqlite3"
+    "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "copy-deps": "node scripts/copy-deps.js",
+    "copy-static": "node scripts/copy-static.js",
+    "electron-pack": "npm run build && npm run copy-static && npm run copy-deps && electron-builder",
+    "electron-pack-win": "npm run build && npm run copy-static && npm run copy-deps && electron-builder --win --x64",
+    "electron-pack-win-setup": "npm run build && npm run copy-static && npm run copy-deps && electron-builder --win --x64 --publish=never",
+    "postpack": "node scripts/copy-server.js"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@libsql/client": "^0.15.9",
+    "@radix-ui/react-checkbox": "^1.3.2",
+    "@radix-ui/react-dialog": "^1.1.14",
+    "@radix-ui/react-dropdown-menu": "^2.1.16",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-toast": "^1.2.14",
+    "@tailwindcss/postcss": "^4.1.11",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@uiw/react-md-editor": "^4.0.7",
+    "bcryptjs": "^3.0.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "drizzle-kit": "^0.31.4",
+    "drizzle-orm": "^0.44.2",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.525.0",
+    "moment": "^2.30.1",
+    "next": "15.3.5",
+    "node-cron": "^4.2.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "shadcn": "^2.8.0",
+    "tailwind-merge": "^3.3.1",
+    "uuid": "^11.1.0",
+    "winston": "^3.17.0",
+    "zustand": "^5.0.6"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@types/node": "^20",
+    "@types/node-cron": "^3.0.11",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "concurrently": "^8.2.2",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "eslint": "^9",
+    "eslint-config-next": "15.3.5",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "wait-on": "^7.2.0"
   },
   "build": {
-    "asar": true,
-    "executableName": "NextJSElectron",
-    "appId": "com.saybackend.nextjs-electron",
-    "asarUnpack": [
-      "node_modules/next",
-      "node_modules/@img",
-      "node_modules/sharp",
-      "node_modules/better-sqlite3",
-      "**\\*.{node,dll}"
-    ],
+    "appId": "com.hodo.app",
+    "productName": "Hodo",
+    "directories": {
+      "output": "dist"
+    },
+    "asar": false,
     "files": [
-      "build",
-      "main.js",
-      {
-        "from": ".next/standalone",
-        "to": "app",
-        "filter": [
-          "!**/.env",
-          "!**/package.json"
-        ]
-      },
-      {
-        "from": ".next/static",
-        "to": "app/.next/static"
-      },
-      {
-        "from": "public",
-        "to": "app/public"
-      }
+      "electron/**/*",
+      ".next/standalone/**",
+      ".next/standalone/server.js",
+      ".next/static/**",
+      "public/**",
+      "package.json",
+      "!**/*.map"
     ],
     "win": {
       "target": [
-        "nsis"
-      ]
-    }
-  },
-  "main": "main.js",
-  "homepage": "./",
-  "dependencies": {
-    "@date-io/date-fns": "^2.17.0",
-    "@electron-toolkit/utils": "^4.0.0",
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.0",
-    "@mui/icons-material": "^7.0.1",
-    "@mui/material": "^7.0.1",
-    "@mui/x-date-pickers": "^7.28.3",
-    "@types/sqlite3": "^3.1.11",
-    "better-sqlite3": "^11.9.1",
-    "date-fns": "^2.30.0",
-    "electron-is-dev": "^3.0.1",
-    "fs-extra": "^11.3.0",
-    "get-port-please": "^3.1.2",
-    "next": "^15.2.4",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7",
-    "uuid": "^11.1.0",
-    "winston": "^3.17.0"
-  },
-  "devDependencies": {
-    "@electron/rebuild": "^3.7.2",
-    "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
-    "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "electron": "^35.1.5",
-    "electron-builder": "^26.0.12",
-    "electron-rebuild": "^3.2.9",
-    "eslint": "^9",
-    "eslint-config-next": "15.2.4",
-    "tailwindcss": "^4",
-    "typescript": "^5"
-  },
-  "config": {
-    "forge": {
-      "electronRebuild": {
-        "forceABI": 133
-      }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "public/hodo-modern.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Hodo"
+    },
+    "forceCodeSigning": false,
+    "electronLanguages": [
+      "en-US",
+      "zh-CN"
+    ],
+    "electronDownload": {
+      "mirror": "https://npm.taobao.org/mirrors/electron/"
     }
   }
 }

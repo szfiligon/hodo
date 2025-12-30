@@ -1,28 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      // 在客户端，将 winston 相关的模块设置为空
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-        crypto: false,
-        stream: false,
-        url: false,
-        zlib: false,
-        http: false,
-        https: false,
-        assert: false,
-        os: false,
-        path: false,
-      };
-    }
-    return config;
+  experimental: {
+    optimizePackageImports: ['@next/font'],
   },
+  // 确保输出是独立的
+  output: 'standalone',
+  // 确保在 Electron 环境中正确工作
+  distDir: '.next',
+  // 移除 optimizeFonts 配置，因为在新版本的 Next.js 中这个选项已经被移除
 };
 
 export default nextConfig;
