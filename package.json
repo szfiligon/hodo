@@ -2,7 +2,6 @@
   "name": "hodo",
   "version": "1.1.0",
   "private": true,
-  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
@@ -10,15 +9,7 @@
     "lint": "next lint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio",
-    "electron": "electron .",
-    "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
-    "copy-deps": "node scripts/copy-deps.js",
-    "copy-static": "node scripts/copy-static.js",
-    "electron-pack": "npm run build && npm run copy-static && npm run copy-deps && electron-builder",
-    "electron-pack-win": "npm run build && npm run copy-static && npm run copy-deps && electron-builder --win --x64",
-    "electron-pack-win-setup": "npm run build && npm run copy-static && npm run copy-deps && electron-builder --win --x64 --publish=never",
-    "postpack": "node scripts/copy-server.js"
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -58,56 +49,9 @@
     "@types/node-cron": "^3.0.11",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "concurrently": "^8.2.2",
-    "electron": "^28.0.0",
-    "electron-builder": "^24.9.1",
     "eslint": "^9",
     "eslint-config-next": "15.3.5",
     "tailwindcss": "^4",
-    "typescript": "^5",
-    "wait-on": "^7.2.0"
-  },
-  "build": {
-    "appId": "com.hodo.app",
-    "productName": "Hodo",
-    "directories": {
-      "output": "dist"
-    },
-    "asar": false,
-    "files": [
-      "electron/**/*",
-      ".next/standalone/**",
-      ".next/standalone/server.js",
-      ".next/static/**",
-      "public/**",
-      "package.json",
-      "!**/*.map"
-    ],
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "public/hodo-modern.ico"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Hodo"
-    },
-    "forceCodeSigning": false,
-    "electronLanguages": [
-      "en-US",
-      "zh-CN"
-    ],
-    "electronDownload": {
-      "mirror": "https://npm.taobao.org/mirrors/electron/"
-    }
+    "typescript": "^5"
   }
 }

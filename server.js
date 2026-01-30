@@ -3,31 +3,6 @@ const { parse } = require('url');
 const path = require('path');
 const fs = require('fs');
 
-// 检查是否在打包后的环境中运行
-const isPackaged = process.env.ELECTRON_IS_PACKAGED === 'true';
-
-if (isPackaged) {
-  // 设置工作目录为 app.asar 的父目录
-  const appPath = process.env.ELECTRON_APP_PATH || path.dirname(process.execPath);
-  const workingDir = path.join(appPath, 'resources', 'app');
-  process.chdir(workingDir);
-  process.env.NEXT_TELEMETRY_DISABLED = '1';
-  
-  // 设置 NODE_PATH 以便找到 node_modules
-  const nodeModulesPath = path.join(workingDir, 'node_modules');
-  if (fs.existsSync(nodeModulesPath)) {
-    process.env.NODE_PATH = nodeModulesPath;
-    // 将 node_modules 路径添加到 module.paths
-    require('module').globalPaths.push(nodeModulesPath);
-  }
-  
-  // 设置 Next.js 相关路径
-  const nextPath = path.join(workingDir, '.next');
-  if (fs.existsSync(nextPath)) {
-    process.env.NEXT_RUNTIME_DIR = nextPath;
-  }
-}
-
 // 简单的日志工具（因为这是 CommonJS 环境）
 function getLogsPath() {
   const os = require('os');
@@ -91,7 +66,6 @@ class Logger {
 const logger = new Logger();
 
 logger.info('[STARTUP] Next.js server starting', {
-  isPackaged,
   nodeEnv: process.env.NODE_ENV,
   cwd: process.cwd()
 });
