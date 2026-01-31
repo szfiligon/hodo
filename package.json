@@ -2,6 +2,7 @@
   "name": "hodo",
   "version": "1.1.0",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
@@ -9,7 +10,13 @@
     "lint": "next lint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "electron": "electron .",
+    "electron-dev": "npm run build && electron .",
+    "pack": "npm run build && electron-builder --dir",
+    "pack:asar": "npm run build && electron-builder --dir",
+    "pack:unpack": "npm run build && electron-builder --dir --config.asar=false",
+    "rebuild": "powershell -ExecutionPolicy Bypass -File rebuild.ps1"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -49,9 +56,39 @@
     "@types/node-cron": "^3.0.11",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "electron": "^40.1.0",
+    "electron-builder": "^26.4.0",
     "eslint": "^9",
     "eslint-config-next": "15.3.5",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "build": {
+    "appId": "com.hodo.app",
+    "productName": "Hodo",
+    "directories": {
+      "output": "dist"
+    },
+    "asar": true,
+    "files": [
+      "electron/**/*",
+      "public/**",
+      "package.json",
+      ".next/**",
+      "server.js",
+      "node_modules/**"
+    ],
+    "asarUnpack": [
+      "server.js",
+      ".next/**",
+      "node_modules/**"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }
