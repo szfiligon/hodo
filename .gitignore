@@ -48,3 +48,6 @@ next-env.d.ts
 
 #log
 /logs
+
+#zip
+*.zip
