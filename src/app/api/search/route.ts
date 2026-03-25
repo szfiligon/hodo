@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, tasks, taskSteps, tags } from '@/lib/db';
+import { db, tasks, tags } from '@/lib/db';
 import { createLogger, generateTraceId } from '@/lib/logger';
 import { sql } from 'drizzle-orm';
 import { authenticateUser, extractUserFromRequest } from '@/lib/auth';
@@ -76,25 +76,11 @@ export async function GET(request: NextRequest) {
     )`)
     .orderBy(sql`${tasks.createdAt} DESC`);
 
-    // 搜索任务步骤标题
-    const stepResults = await db.select({
-      id: taskSteps.id,
-      title: taskSteps.title,
-      type: sql`'step'`.as('type'),
-      completed: taskSteps.completed,
-      taskId: taskSteps.taskId,
-      createdAt: taskSteps.createdAt
-    })
-    .from(taskSteps)
-    .innerJoin(tasks, sql`${taskSteps.taskId} = ${tasks.id}`)
-    .where(sql`${tasks.userId} = ${userId} AND ${taskSteps.title} LIKE ${`%${searchQuery}%`}`)
-    .orderBy(sql`${taskSteps.createdAt} DESC`);
-
-    // 合并结果并按相关性排序（简单的按创建时间倒序）
-    const allResults = [...taskResults, ...stepResults]
+    // 按创建时间倒序
+    const allResults = [...taskResults]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    logger.info(`Search results: ${taskResults.length} tasks, ${stepResults.length} steps, total: ${allResults.length}`);
+    logger.info(`Search results: ${taskResults.length} tasks, total: ${allResults.length}`);
 
     // 转换布尔值
     const resultsWithBoolean = allResults.map(result => ({

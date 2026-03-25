@@ -14,7 +14,6 @@ export interface Task {
   userId: string
   notes?: string
   isTodayTask: boolean
-  startDate?: Date
   tags?: string
   files?: TaskFile[]
   createdAt: Date
@@ -29,16 +28,6 @@ export interface TaskFile {
   fileSize: number
   mimeType: string
   filePath: string
-  createdAt: Date
-  updatedAt: Date
-}
-
-export interface TaskStep {
-  id: string
-  taskId: string
-  title: string
-  completed: boolean
-  order: number
   createdAt: Date
   updatedAt: Date
 }

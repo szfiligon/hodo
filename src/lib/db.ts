@@ -340,18 +340,7 @@ export const tasks = createTable('tasks', {
   userId: 'user_id',
   notes: 'notes',
   isTodayTask: 'is_today_task',
-  startDate: 'start_date',
   tags: 'tags',
-  createdAt: 'created_at',
-  updatedAt: 'updated_at',
-});
-
-export const taskSteps = createTable('task_steps', {
-  id: 'id',
-  taskId: 'task_id',
-  title: 'title',
-  completed: 'completed',
-  order: 'order',
   createdAt: 'created_at',
   updatedAt: 'updated_at',
 });
@@ -502,7 +491,6 @@ async function performDatabaseInit() {
           user_id TEXT NOT NULL,
           notes TEXT,
           is_today_task INTEGER NOT NULL DEFAULT 0,
-          start_date TEXT,
           tags TEXT,
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL
@@ -511,14 +499,6 @@ async function performDatabaseInit() {
       
       // 创建任务表索引
       await db.run(sql`CREATE INDEX IF NOT EXISTS idx_tasks_user_folder_created ON tasks(user_id, folder_id, created_at)`);
-      
-      // 检查并添加 start_date 字段（如果不存在）
-      try {
-        await db.run(sql`ALTER TABLE tasks ADD COLUMN start_date TEXT`);
-        console.log('Start date column added to existing tasks table');
-      } catch {
-        console.log('Start date column already exists in tasks table');
-      }
       
       // 检查并添加 tags 字段（如果不存在）
       try {
@@ -531,29 +511,6 @@ async function performDatabaseInit() {
       console.log('Tasks table and indexes created/verified successfully');
     } catch (error) {
       console.error('Error creating tasks table:', error);
-      throw error;
-    }
-
-    // 检查并创建任务步骤表
-    try {
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS task_steps (
-          id TEXT PRIMARY KEY,
-          task_id TEXT NOT NULL,
-          title TEXT NOT NULL,
-          completed INTEGER NOT NULL DEFAULT 0,
-          "order" INTEGER NOT NULL,
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL
-        )
-      `);
-      
-      // 创建任务步骤表索引
-      await db.run(sql`CREATE INDEX IF NOT EXISTS idx_task_steps_task_order ON task_steps(task_id, "order")`);
-      
-      console.log('Task steps table and indexes created/verified successfully');
-    } catch (error) {
-      console.error('Error creating task_steps table:', error);
       throw error;
     }
 

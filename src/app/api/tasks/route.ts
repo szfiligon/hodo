@@ -47,7 +47,6 @@ export async function POST(request: NextRequest) {
       userId,
       notes: '',
       isTodayTask: false,
-      startDate: new Date(), // 自动设置为当前日期
       createdAt: new Date(now),
       updatedAt: new Date(now)
     };
@@ -61,7 +60,6 @@ export async function POST(request: NextRequest) {
       userId: newTask.userId,
       notes: newTask.notes,
       isTodayTask: !!newTask.isTodayTask,
-      startDate: newTask.startDate ? newTask.startDate.toISOString() : null,
       tags: newTask.tags || null,
       createdAt: newTask.createdAt.toISOString(),
       updatedAt: newTask.updatedAt.toISOString()
@@ -145,8 +143,7 @@ export async function GET(request: NextRequest) {
     const tasksWithBoolean = sortedTasks.map(task => ({
       ...task,
       completed: Boolean(task.completed),
-      isTodayTask: Boolean(task.isTodayTask),
-      startDate: task.startDate ? new Date(task.startDate) : undefined
+      isTodayTask: Boolean(task.isTodayTask)
     }));
 
     // 使用用户信息创建新的logger
@@ -209,8 +206,7 @@ export async function GET_TODAY(request: NextRequest) {
     const tasksWithBoolean = sortedTodayTasks.map(task => ({
       ...task,
       completed: Boolean(task.completed),
-      isTodayTask: Boolean(task.isTodayTask),
-      startDate: task.startDate ? new Date(task.startDate) : undefined
+      isTodayTask: Boolean(task.isTodayTask)
     }));
     
     logger.info(`Today tasks retrieved successfully {"count":${tasksWithBoolean.length}}`);
@@ -246,7 +242,7 @@ export async function PUT(request: NextRequest) {
     
     // 解析请求体
     const body = await request.json();
-    const { id, title, completed, notes, isToday, startDate, folderId, tags } = body;
+    const { id, title, completed, notes, isToday, folderId, tags } = body;
 
     // 验证必需字段
     if (!id) {
@@ -277,10 +273,6 @@ export async function PUT(request: NextRequest) {
 
     if (isToday !== undefined) {
       updateData.isTodayTask = isToday ? 1 : 0;
-    }
-
-    if (startDate !== undefined) {
-      updateData.startDate = startDate;
     }
 
     if (folderId !== undefined) {

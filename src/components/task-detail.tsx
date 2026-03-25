@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { Check, Trash2, Loader2, Calendar, User, FileText, Star } from "lucide-react"
 import { Task } from "@/lib/types"
 import { useTodoStore, useTagFeatureStore } from "@/lib/store"
-import { TaskSteps } from "./task-steps"
 import { TaskFiles } from "./task-files"
 import { TagSelector } from "./tag-selector"
 import { showFileUploadSuccess, showFileUploadError } from "@/lib/toast"
@@ -26,10 +25,9 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
   const [editNotes, setEditNotes] = useState(task.notes || '')
-  const [editStartDate, setEditStartDate] = useState(task.startDate ? new Date(task.startDate).toISOString().split('T')[0] : '')
   const [isLoading, setIsLoading] = useState(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
-  const { toggleTask, updateTask, updateTaskNotes, toggleTodayTask, deleteTask, updateTaskStartDate, uploadTaskFile, updateTaskTags, getTaskFiles } = useTodoStore()
+  const { toggleTask, updateTask, updateTaskNotes, toggleTodayTask, deleteTask, uploadTaskFile, updateTaskTags, getTaskFiles } = useTodoStore()
   const { isEnabled: isTagFeatureEnabled } = useTagFeatureStore()
   const mdEditorRef = useRef<HTMLDivElement>(null)
   const taskFilesRef = useRef<{ reloadFiles: () => void } | null>(null)
@@ -38,9 +36,8 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
   useEffect(() => {
     setEditTitle(task.title)
     setEditNotes(task.notes || '')
-    setEditStartDate(task.startDate ? new Date(task.startDate).toISOString().split('T')[0] : '')
     setIsEditingTitle(false)
-  }, [task.id, task.title, task.notes, task.startDate, task.updatedAt])
+  }, [task.id, task.title, task.notes, task.updatedAt])
 
   // 处理备注变化
   const handleNotesChange = (value: string | undefined) => {
@@ -211,35 +208,6 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
     }
   }
 
-  const handleStartDateSave = async () => {
-    const currentStartDate = task.startDate ? new Date(task.startDate).toISOString().split('T')[0] : ''
-    if (editStartDate === currentStartDate) return // No change needed
-    
-    setIsLoading(true)
-    try {
-      const success = await updateTaskStartDate(task.id, editStartDate || null)
-      if (success) {
-        // Update the task in the detail view
-        const updatedTask = { 
-          ...task, 
-          startDate: editStartDate ? new Date(editStartDate) : undefined, 
-          updatedAt: new Date() 
-        }
-        onUpdate(updatedTask)
-      } else {
-        console.error('Failed to update task start date')
-        // Revert to original value on failure
-        setEditStartDate(currentStartDate)
-      }
-    } catch (error) {
-      console.error('Error updating task start date:', error)
-      // Revert to original value on error
-      setEditStartDate(currentStartDate)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   const handleToggleToday = async () => {
     setIsLoading(true)
     try {
@@ -356,7 +324,7 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
       <div className="flex-1 p-6 overflow-y-auto">
         <div className="space-y-6">
 
-          {/* Today Task and Start Date Section */}
+          {/* Today Task Section */}
           <div className="space-y-3">
             <div className="flex items-center gap-4">
               {/* Today Task Toggle */}
@@ -389,43 +357,7 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
                 </div>
               </div>
 
-              {/* Start Date Section */}
-              <div className="w-48 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-gray-600" />
-                  <h3 className="text-sm font-medium text-gray-900">开始日</h3>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="relative w-full">
-                    <input
-                      type="date"
-                      value={editStartDate}
-                      onChange={(e) => setEditStartDate(e.target.value)}
-                      onBlur={handleStartDateSave}
-                      className="w-full h-10 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 cursor-pointer transition-colors"
-                      disabled={isLoading}
-                      id="start-date-input"
-                    />
-                    <div 
-                      className="absolute inset-0 cursor-pointer"
-                      onClick={() => {
-                        const input = document.getElementById('start-date-input') as HTMLInputElement;
-                        if (input && !isLoading) {
-                          input.focus();
-                          input.showPicker?.();
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
             </div>
-          </div>
-
-          {/* Task Steps Section */}
-          <div className="space-y-3 pt-4 border-t border-gray-200">
-            <TaskSteps key={task.id} taskId={task.id} />
           </div>
 
           {/* Tags Section */}

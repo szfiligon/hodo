@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { Task, Folder, TaskListState, User, TaskStep, TaskFile } from './types'
+import { Task, Folder, TaskListState, User, TaskFile } from './types'
 import { showError } from './toast';
 
 // Helper function to convert date strings to Date objects
@@ -12,9 +12,6 @@ const convertDates = (obj: any): any => {
     }
     if (converted.updatedAt && typeof converted.updatedAt === 'string') {
       converted.updatedAt = new Date(converted.updatedAt)
-    }
-    if (converted.startDate && typeof converted.startDate === 'string') {
-      converted.startDate = new Date(converted.startDate)
     }
     return converted
   }
@@ -126,7 +123,6 @@ interface TodoStore extends TaskListState {
   toggleTask: (id: string) => Promise<boolean>
   updateTask: (id: string, title: string) => Promise<boolean>
   updateTaskNotes: (id: string, notes: string) => Promise<boolean>
-  updateTaskStartDate: (id: string, startDate: string | null) => Promise<boolean>
   updateTaskTags: (id: string, tags: string[]) => Promise<boolean>
   toggleTodayTask: (id: string) => Promise<boolean>
   moveTask: (taskId: string, folderId: string) => Promise<boolean>
@@ -145,13 +141,6 @@ interface TodoStore extends TaskListState {
   isTaskPinned: (taskId: string, folderId: string) => boolean
   getPinnedTasks: (folderId: string) => string[]
   pinnedTasksUpdateTrigger: number
-
-  // Task Step Actions
-  addTaskStep: (taskId: string, title: string) => Promise<boolean>
-  deleteTaskStep: (id: string) => Promise<boolean>
-  toggleTaskStep: (id: string) => Promise<boolean>
-  updateTaskStep: (id: string, title: string) => Promise<boolean>
-  getTaskSteps: (taskId: string) => Promise<TaskStep[]>
 
   // Task File Actions
   uploadTaskFile: (taskId: string, file: File) => Promise<boolean>
@@ -661,44 +650,6 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
     }
   },
 
-  updateTaskStartDate: async (id: string, startDate: string | null) => {
-    try {
-      const response = await hodoFetch('/api/tasks', {
-        method: 'PUT',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id,
-          startDate
-        }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        console.error('Failed to update task start date:', error)
-        return false
-      }
-
-      const data = await response.json()
-      if (data.success && data.task) {
-        // Convert date strings to Date objects and update local state
-        const taskWithDates = convertDates(data.task)
-        set((state) => ({
-          tasks: state.tasks.map(task =>
-            task.id === id ? taskWithDates : task
-          )
-        }))
-        return true
-      }
-      return false
-    } catch (error) {
-      console.error('Error updating task start date:', error)
-      return false
-    }
-  },
-
   updateTaskTags: async (id: string, tags: string[]) => {
     try {
       // 更新本地状态中的任务标签
@@ -941,153 +892,6 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
     } catch (error) {
       console.error('Error loading task by ID:', error)
       return null
-    }
-  },
-
-  // Task Step Actions
-  addTaskStep: async (taskId: string, title: string) => {
-    try {
-      const response = await hodoFetch('/api/task-steps', {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          taskId,
-          title
-        }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        console.error('Failed to create task step:', error)
-        return false
-      }
-
-      const data = await response.json()
-      if (data.success && data.step) {
-        // Note: We don't store steps in global state, they're fetched per task
-        return true
-      }
-      return false
-    } catch (error) {
-      console.error('Error creating task step:', error)
-      return false
-    }
-  },
-
-  deleteTaskStep: async (id: string) => {
-    try {
-      const response = await hodoFetch(`/api/task-steps?id=${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        console.error('Failed to delete task step:', error)
-        return false
-      }
-
-      return true
-    } catch (error) {
-      console.error('Error deleting task step:', error)
-      return false
-    }
-  },
-
-  toggleTaskStep: async (id: string) => {
-    try {
-      // 首先获取当前步骤的状态
-      const getResponse = await hodoFetch(`/api/task-steps?id=${id}`, {
-        headers: getAuthHeaders()
-      })
-      
-      if (!getResponse.ok) {
-        console.error('Failed to get task step for toggle')
-        return false
-      }
-      
-      const getData = await getResponse.json()
-      if (!getData.success || !getData.steps || getData.steps.length === 0) {
-        console.error('Task step not found for toggle')
-        return false
-      }
-      
-      const currentStep = getData.steps[0]
-      const newCompletedState = !currentStep.completed
-      
-      // 然后更新步骤状态
-      const response = await hodoFetch('/api/task-steps', {
-        method: 'PUT',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          id, 
-          completed: newCompletedState
-        }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        console.error('Failed to toggle task step:', error)
-        return false
-      }
-
-      const data = await response.json()
-      if (data.success && data.step) {
-        return true
-      }
-      return false
-    } catch (error) {
-      console.error('Error toggling task step:', error)
-      return false
-    }
-  },
-
-  updateTaskStep: async (id: string, title: string) => {
-    try {
-      const response = await hodoFetch('/api/task-steps', {
-        method: 'PUT',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ id, title }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        console.error('Failed to update task step:', error)
-        return false
-      }
-
-      return true
-    } catch (error) {
-      console.error('Error updating task step:', error)
-      return false
-    }
-  },
-
-  getTaskSteps: async (taskId: string) => {
-    try {
-      const response = await hodoFetch(`/api/task-steps?taskId=${taskId}`, {
-        headers: getAuthHeaders()
-      })
-      if (response.ok) {
-        const data = await response.json()
-        if (data.success) {
-          // Convert date strings to Date objects for all steps
-          return data.steps.map(convertDates)
-        }
-      }
-      return []
-    } catch (error) {
-      console.error('Error loading task steps:', error)
-      return []
     }
   },
 
