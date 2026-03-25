@@ -30,7 +30,7 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
   const [editDueDate, setEditDueDate] = useState(task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '')
   const [isLoading, setIsLoading] = useState(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
-  const { toggleTask, updateTask, updateTaskNotes, toggleTodayTask, deleteTask, updateTaskStartDate, updateTaskDueDate, uploadTaskFile, updateTaskTags } = useTodoStore()
+  const { toggleTask, updateTask, updateTaskNotes, toggleTodayTask, deleteTask, updateTaskStartDate, updateTaskDueDate, uploadTaskFile, updateTaskTags, getTaskFiles } = useTodoStore()
   const { isEnabled: isTagFeatureEnabled } = useTagFeatureStore()
   const mdEditorRef = useRef<HTMLDivElement>(null)
   const taskFilesRef = useRef<{ reloadFiles: () => void } | null>(null)
@@ -125,10 +125,16 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
           const success = await uploadTaskFile(task.id, renamedFile)
           if (success) {
             showFileUploadSuccess('图片已成功上传为附件')
-            // 在备注中插入图片引用，使用 Markdown 格式
-            const imageRef = `![${fileName}](/api/files/attachment-${timestamp})`
-            const newNotes = editNotes + (editNotes ? '\n\n' : '') + imageRef
-            setEditNotes(newNotes)
+            const files = await getTaskFiles(task.id)
+            const latestFile = [...files].sort(
+              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            )[0]
+            if (latestFile) {
+              // 在备注中插入可访问的文件链接
+              const imageRef = `![${latestFile.originalName}](/api/files/${latestFile.id})`
+              const newNotes = editNotes + (editNotes ? '\n\n' : '') + imageRef
+              setEditNotes(newNotes)
+            }
             // 刷新文件列表
             taskFilesRef.current?.reloadFiles()
           } else {

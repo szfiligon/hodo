@@ -4,6 +4,7 @@ import { getDatabasePath, initializeUserDataDirectories } from './user-data';
 type SqlCondition = { text: string; params: unknown[] };
 type TableColumn = { __kind: 'column'; table: string; column: string; field: string };
 type TableDef = { __table: string; __columns: Record<string, string> } & Record<string, TableColumn | string | Record<string, string>>;
+type SelectProjectionValue = TableColumn | SqlCondition;
 
 function createTable(tableName: string, columns: Record<string, string>): TableDef {
   const table: TableDef = {
@@ -97,9 +98,9 @@ class SelectBuilder<T = Record<string, unknown>> {
   private whereCondition?: SqlCondition;
   private orderCondition?: SqlCondition;
   private rowLimit?: number;
-  private projection?: Record<string, TableColumn>;
+  private projection?: Record<string, SelectProjectionValue>;
 
-  constructor(projection?: Record<string, TableColumn>) {
+  constructor(projection?: Record<string, SelectProjectionValue>) {
     this.projection = projection;
   }
 
@@ -125,15 +126,21 @@ class SelectBuilder<T = Record<string, unknown>> {
 
   async execute(): Promise<T[]> {
     if (!this.table) throw new Error('Missing table in select query');
+    const params: unknown[] = [];
     const selectClause = this.projection
       ? Object.entries(this.projection)
-          .map(([alias, col]) => `${quoteIdentifier(col.table)}.${quoteIdentifier(col.column)} AS ${quoteIdentifier(alias)}`)
+          .map(([alias, value]) => {
+            if (isColumnRef(value)) {
+              return `${quoteIdentifier(value.table)}.${quoteIdentifier(value.column)} AS ${quoteIdentifier(alias)}`;
+            }
+            params.push(...value.params);
+            return `${value.text} AS ${quoteIdentifier(alias)}`;
+          })
           .join(', ')
       : Object.entries(this.table.__columns)
           .map(([field, column]) => `${quoteIdentifier(this.table!.__table)}.${quoteIdentifier(column)} AS ${quoteIdentifier(field)}`)
           .join(', ');
     let query = `SELECT ${selectClause} FROM ${quoteIdentifier(this.table.__table)}`;
-    const params: unknown[] = [];
     if (this.whereCondition) {
       query += ` WHERE ${this.whereCondition.text}`;
       params.push(...this.whereCondition.params);
@@ -161,14 +168,48 @@ class SelectBuilder<T = Record<string, unknown>> {
 class InsertBuilder {
   constructor(private table: TableDef) {}
 
-  async values(payload: Record<string, unknown>) {
-    const entries = Object.entries(payload);
+  values(payload: Record<string, unknown>) {
+    return new InsertValuesBuilder(this.table, payload);
+  }
+}
+
+class InsertValuesBuilder<T = Record<string, unknown>> {
+  constructor(private table: TableDef, private payload: Record<string, unknown>) {}
+
+  private async doInsert() {
+    const entries = Object.entries(this.payload);
     const columns = entries.map(([field]) => fieldToColumn(this.table, field));
     const values = entries.map(([, value]) => value);
     const query = `INSERT INTO ${quoteIdentifier(this.table.__table)} (${columns.map(quoteIdentifier).join(', ')}) VALUES (${values
       .map(() => '?')
       .join(', ')})`;
     await prisma.$executeRawUnsafe(query, ...values);
+  }
+
+  async execute() {
+    await this.doInsert();
+  }
+
+  async returning(): Promise<T[]> {
+    await this.doInsert();
+    const idField = Object.prototype.hasOwnProperty.call(this.payload, 'id') ? 'id' : null;
+    if (!idField) {
+      return [];
+    }
+    const idColumn = fieldToColumn(this.table, idField);
+    const idValue = this.payload[idField];
+    const selectClause = Object.entries(this.table.__columns)
+      .map(([field, column]) => `${quoteIdentifier(this.table.__table)}.${quoteIdentifier(column)} AS ${quoteIdentifier(field)}`)
+      .join(', ');
+    const query = `SELECT ${selectClause} FROM ${quoteIdentifier(this.table.__table)} WHERE ${quoteIdentifier(idColumn)} = ? LIMIT 1`;
+    return prisma.$queryRawUnsafe<T[]>(query, idValue);
+  }
+
+  then<TResult1 = void, TResult2 = never>(
+    onfulfilled?: ((value: void) => TResult1 | PromiseLike<TResult1>) | null,
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+  ) {
+    return this.execute().then(onfulfilled, onrejected);
   }
 }
 
@@ -230,7 +271,7 @@ class DeleteBuilder {
 }
 
 class DbClient {
-  select<T extends Record<string, TableColumn>>(projection?: T) {
+  select<T extends Record<string, SelectProjectionValue>>(projection?: T) {
     return new SelectBuilder<T extends undefined ? Record<string, unknown> : { [K in keyof T]: unknown }>(projection);
   }
 

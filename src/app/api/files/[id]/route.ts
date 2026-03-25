@@ -14,8 +14,10 @@ export async function GET(
   const { logger } = createRequestLogger('files.route', request)
   try {
     logger.info(`Starting file download API request {"fileId":"${fileId}"}`)
-    // Verify authentication
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
+    // Verify authentication (support Authorization header and cookie for markdown image rendering)
+    const tokenFromHeader = request.headers.get('authorization')?.replace('Bearer ', '')
+    const tokenFromCookie = request.cookies.get('hodo_token')?.value
+    const token = tokenFromHeader || tokenFromCookie
     if (!token) {
       logger.warn('No authentication token provided')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
