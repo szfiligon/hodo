@@ -1,130 +1,374 @@
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { sql } from 'drizzle-orm';
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { PrismaClient } from '@prisma/client';
 import { getDatabasePath, initializeUserDataDirectories } from './user-data';
+
+type SqlCondition = { text: string; params: unknown[] };
+type TableColumn = { __kind: 'column'; table: string; column: string; field: string };
+type TableDef = { __table: string; __columns: Record<string, string> } & Record<string, TableColumn | string | Record<string, string>>;
+
+function createTable(tableName: string, columns: Record<string, string>): TableDef {
+  const table: TableDef = {
+    __table: tableName,
+    __columns: columns,
+  };
+  for (const [field, column] of Object.entries(columns)) {
+    table[field] = { __kind: 'column', table: tableName, column, field };
+  }
+  return table;
+}
+
+function isColumnRef(value: unknown): value is TableColumn {
+  return typeof value === 'object' && value !== null && (value as TableColumn).__kind === 'column';
+}
+
+function fieldToColumn(table: TableDef, field: string): string {
+  return table.__columns[field] ?? field;
+}
+
+function quoteIdentifier(name: string): string {
+  return `"${name.replace(/"/g, '""')}"`;
+}
+
+export function sql(strings: TemplateStringsArray, ...values: unknown[]): SqlCondition {
+  const params: unknown[] = [];
+  let text = '';
+  for (let i = 0; i < strings.length; i += 1) {
+    text += strings[i];
+    if (i < values.length) {
+      const value = values[i];
+      if (isColumnRef(value)) {
+        text += `${quoteIdentifier(value.table)}.${quoteIdentifier(value.column)}`;
+      } else if (typeof value === 'object' && value !== null && 'text' in (value as Record<string, unknown>) && 'params' in (value as Record<string, unknown>)) {
+        const cond = value as SqlCondition;
+        text += cond.text;
+        params.push(...cond.params);
+      } else {
+        text += '?';
+        params.push(value);
+      }
+    }
+  }
+  return { text, params };
+}
+
+export function eq(left: TableColumn, right: unknown): SqlCondition {
+  return isColumnRef(right)
+    ? { text: `${quoteIdentifier(left.table)}.${quoteIdentifier(left.column)} = ${quoteIdentifier(right.table)}.${quoteIdentifier(right.column)}`, params: [] }
+    : { text: `${quoteIdentifier(left.table)}.${quoteIdentifier(left.column)} = ?`, params: [right] };
+}
+
+export function ne(left: TableColumn, right: unknown): SqlCondition {
+  return { text: `${quoteIdentifier(left.table)}.${quoteIdentifier(left.column)} != ?`, params: [right] };
+}
+
+export function lt(left: TableColumn, right: unknown): SqlCondition {
+  return { text: `${quoteIdentifier(left.table)}.${quoteIdentifier(left.column)} < ?`, params: [right] };
+}
+
+export function and(...conditions: Array<SqlCondition | undefined | null>): SqlCondition {
+  const valid = conditions.filter(Boolean) as SqlCondition[];
+  return {
+    text: valid.map((c) => `(${c.text})`).join(' AND ') || '1=1',
+    params: valid.flatMap((c) => c.params),
+  };
+}
+
+export function inArray(left: TableColumn, values: unknown[]): SqlCondition {
+  if (values.length === 0) return { text: '1=0', params: [] };
+  return {
+    text: `${quoteIdentifier(left.table)}.${quoteIdentifier(left.column)} IN (${values.map(() => '?').join(', ')})`,
+    params: values,
+  };
+}
+
+export function isNotNull(left: TableColumn): SqlCondition {
+  return { text: `${quoteIdentifier(left.table)}.${quoteIdentifier(left.column)} IS NOT NULL`, params: [] };
+}
+
+export function desc(column: TableColumn): SqlCondition {
+  return { text: `${quoteIdentifier(column.table)}.${quoteIdentifier(column.column)} DESC`, params: [] };
+}
+
+export function asc(column: TableColumn): SqlCondition {
+  return { text: `${quoteIdentifier(column.table)}.${quoteIdentifier(column.column)} ASC`, params: [] };
+}
+
+class SelectBuilder<T = Record<string, unknown>> {
+  private table?: TableDef;
+  private whereCondition?: SqlCondition;
+  private orderCondition?: SqlCondition;
+  private rowLimit?: number;
+  private projection?: Record<string, TableColumn>;
+
+  constructor(projection?: Record<string, TableColumn>) {
+    this.projection = projection;
+  }
+
+  from(table: TableDef) {
+    this.table = table;
+    return this;
+  }
+
+  where(condition: SqlCondition) {
+    this.whereCondition = condition;
+    return this;
+  }
+
+  orderBy(condition: SqlCondition) {
+    this.orderCondition = condition;
+    return this;
+  }
+
+  limit(limit: number) {
+    this.rowLimit = limit;
+    return this;
+  }
+
+  async execute(): Promise<T[]> {
+    if (!this.table) throw new Error('Missing table in select query');
+    const selectClause = this.projection
+      ? Object.entries(this.projection)
+          .map(([alias, col]) => `${quoteIdentifier(col.table)}.${quoteIdentifier(col.column)} AS ${quoteIdentifier(alias)}`)
+          .join(', ')
+      : Object.entries(this.table.__columns)
+          .map(([field, column]) => `${quoteIdentifier(this.table!.__table)}.${quoteIdentifier(column)} AS ${quoteIdentifier(field)}`)
+          .join(', ');
+    let query = `SELECT ${selectClause} FROM ${quoteIdentifier(this.table.__table)}`;
+    const params: unknown[] = [];
+    if (this.whereCondition) {
+      query += ` WHERE ${this.whereCondition.text}`;
+      params.push(...this.whereCondition.params);
+    }
+    if (this.orderCondition) {
+      query += ` ORDER BY ${this.orderCondition.text}`;
+      params.push(...this.orderCondition.params);
+    }
+    if (this.rowLimit !== undefined) {
+      query += ' LIMIT ?';
+      params.push(this.rowLimit);
+    }
+    const rows = await prisma.$queryRawUnsafe<T[]>(query, ...params);
+    return rows;
+  }
+
+  then<TResult1 = T[], TResult2 = never>(
+    onfulfilled?: ((value: T[]) => TResult1 | PromiseLike<TResult1>) | null,
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+  ) {
+    return this.execute().then(onfulfilled, onrejected);
+  }
+}
+
+class InsertBuilder {
+  constructor(private table: TableDef) {}
+
+  async values(payload: Record<string, unknown>) {
+    const entries = Object.entries(payload);
+    const columns = entries.map(([field]) => fieldToColumn(this.table, field));
+    const values = entries.map(([, value]) => value);
+    const query = `INSERT INTO ${quoteIdentifier(this.table.__table)} (${columns.map(quoteIdentifier).join(', ')}) VALUES (${values
+      .map(() => '?')
+      .join(', ')})`;
+    await prisma.$executeRawUnsafe(query, ...values);
+  }
+}
+
+class UpdateBuilder {
+  private payload: Record<string, unknown> = {};
+  private whereCondition?: SqlCondition;
+
+  constructor(private table: TableDef) {}
+
+  set(payload: Record<string, unknown>) {
+    this.payload = payload;
+    return this;
+  }
+
+  where(condition: SqlCondition) {
+    this.whereCondition = condition;
+    return this;
+  }
+
+  async execute() {
+    const entries = Object.entries(this.payload);
+    const setClause = entries.map(([field]) => `${quoteIdentifier(fieldToColumn(this.table, field))} = ?`).join(', ');
+    const query = `UPDATE ${quoteIdentifier(this.table.__table)} SET ${setClause}${
+      this.whereCondition ? ` WHERE ${this.whereCondition.text}` : ''
+    }`;
+    const params = [...entries.map(([, value]) => value), ...(this.whereCondition?.params ?? [])];
+    await prisma.$executeRawUnsafe(query, ...params);
+  }
+
+  then<TResult1 = void, TResult2 = never>(
+    onfulfilled?: ((value: void) => TResult1 | PromiseLike<TResult1>) | null,
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+  ) {
+    return this.execute().then(onfulfilled, onrejected);
+  }
+}
+
+class DeleteBuilder {
+  private whereCondition?: SqlCondition;
+
+  constructor(private table: TableDef) {}
+
+  where(condition: SqlCondition) {
+    this.whereCondition = condition;
+    return this;
+  }
+
+  async execute() {
+    const query = `DELETE FROM ${quoteIdentifier(this.table.__table)}${this.whereCondition ? ` WHERE ${this.whereCondition.text}` : ''}`;
+    await prisma.$executeRawUnsafe(query, ...(this.whereCondition?.params ?? []));
+  }
+
+  then<TResult1 = void, TResult2 = never>(
+    onfulfilled?: ((value: void) => TResult1 | PromiseLike<TResult1>) | null,
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+  ) {
+    return this.execute().then(onfulfilled, onrejected);
+  }
+}
+
+class DbClient {
+  select<T extends Record<string, TableColumn>>(projection?: T) {
+    return new SelectBuilder<T extends undefined ? Record<string, unknown> : { [K in keyof T]: unknown }>(projection);
+  }
+
+  insert(table: TableDef) {
+    return new InsertBuilder(table);
+  }
+
+  update(table: TableDef) {
+    return new UpdateBuilder(table);
+  }
+
+  delete(table: TableDef) {
+    return new DeleteBuilder(table);
+  }
+
+  async run(condition: SqlCondition) {
+    await prisma.$executeRawUnsafe(condition.text, ...condition.params);
+  }
+
+  async execute(condition: SqlCondition) {
+    return prisma.$queryRawUnsafe(condition.text, ...condition.params);
+  }
+}
 
 // 初始化用户数据目录
 initializeUserDataDirectories();
-
-// 使用 better-sqlite3 直连本地 SQLite，避免额外本机动态库依赖
 const databaseUrl = getDatabasePath();
-const databasePath = databaseUrl.startsWith('file:') ? databaseUrl.slice(5) : databaseUrl;
-const client = new Database(databasePath);
 
-// 创建 drizzle 实例
-export const db = drizzle(client);
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: databaseUrl,
+    },
+  },
+});
+
+export const db = new DbClient();
 
 // 全局初始化状态
 let isDatabaseInitialized = false;
 let initPromise: Promise<void> | null = null;
 
-// 定义用户表
-export const users = sqliteTable('users', {
-  id: text('id').primaryKey(),
-  username: text('username').notNull(),
-  password: text('password').notNull(),
-  createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull(),
+export const users = createTable('users', {
+  id: 'id',
+  username: 'username',
+  password: 'password',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
 });
 
-// 定义文件夹表
-export const folders = sqliteTable('folders', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  color: text('color'),
-  userId: text('user_id').notNull(),
-  archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
-  createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull(),
+export const folders = createTable('folders', {
+  id: 'id',
+  name: 'name',
+  color: 'color',
+  userId: 'user_id',
+  archived: 'archived',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
 });
 
-// 定义任务表
-export const tasks = sqliteTable('tasks', {
-  id: text('id').primaryKey(),
-  title: text('title').notNull(),
-  completed: integer('completed', { mode: 'boolean' }).notNull().default(false),
-  folderId: text('folder_id').notNull(),
-  userId: text('user_id').notNull(),
-  notes: text('notes'),
-  isTodayTask: integer('is_today_task', { mode: 'boolean' }).notNull().default(false),
-  startDate: text('start_date'),
-  dueDate: text('due_date'),
-  tags: text('tags'), // 标签字段，多个标签用逗号分隔
-  createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull(),
+export const tasks = createTable('tasks', {
+  id: 'id',
+  title: 'title',
+  completed: 'completed',
+  folderId: 'folder_id',
+  userId: 'user_id',
+  notes: 'notes',
+  isTodayTask: 'is_today_task',
+  startDate: 'start_date',
+  dueDate: 'due_date',
+  tags: 'tags',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
 });
 
-// 定义任务步骤表
-export const taskSteps = sqliteTable('task_steps', {
-  id: text('id').primaryKey(),
-  taskId: text('task_id').notNull(),
-  title: text('title').notNull(),
-  completed: integer('completed', { mode: 'boolean' }).notNull().default(false),
-  order: integer('order').notNull(),
-  createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull(),
+export const taskSteps = createTable('task_steps', {
+  id: 'id',
+  taskId: 'task_id',
+  title: 'title',
+  completed: 'completed',
+  order: 'order',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
 });
 
-// 定义任务文件表
-export const taskFiles = sqliteTable('task_files', {
-  id: text('id').primaryKey(),
-  taskId: text('task_id').notNull(),
-  fileName: text('file_name').notNull(),
-  originalName: text('original_name').notNull(),
-  fileSize: integer('file_size').notNull(),
-  mimeType: text('mime_type').notNull(),
-  filePath: text('file_path').notNull(),
-  createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull(),
+export const taskFiles = createTable('task_files', {
+  id: 'id',
+  taskId: 'task_id',
+  fileName: 'file_name',
+  originalName: 'original_name',
+  fileSize: 'file_size',
+  mimeType: 'mime_type',
+  filePath: 'file_path',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
 });
 
-// 定义访问记录表
-export const accessLogs = sqliteTable('access_logs', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  timestamp: text('timestamp').notNull(),
-  userAgent: text('user_agent'),
-  ipAddress: text('ip_address'),
-  path: text('path').notNull(),
+export const accessLogs = createTable('access_logs', {
+  id: 'id',
+  timestamp: 'timestamp',
+  userAgent: 'user_agent',
+  ipAddress: 'ip_address',
+  path: 'path',
 });
 
-// 定义解锁记录表
-export const unlockRecords = sqliteTable('unlock_records', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  username: text('username').notNull().unique(),
-  date: text('date').notNull(), // yyyyMMdd
-  unlockCode: text('unlock_code').notNull(), // 直接存储解锁码原文
+export const unlockRecords = createTable('unlock_records', {
+  id: 'id',
+  username: 'username',
+  date: 'date',
+  unlockCode: 'unlock_code',
 });
 
-// 定义系统配置表
-export const systemConfig = sqliteTable('system_config', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  key: text('key').notNull().unique(),
-  value: text('value').notNull(),
-  createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull(),
+export const systemConfig = createTable('system_config', {
+  id: 'id',
+  key: 'key',
+  value: 'value',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
 });
 
-// 定义消息记录表
-export const messages = sqliteTable('messages', {
-  id: text('id').primaryKey(),
-  msg: text('msg').notNull(),
-  type: text('type').notNull().default('info'), // 消息类型：'feature' | 'expiry' | 'info'
-  read: integer('read', { mode: 'boolean' }).notNull().default(false),
-  userId: text('user_id').notNull(),
-  createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull(),
+export const messages = createTable('messages', {
+  id: 'id',
+  msg: 'msg',
+  type: 'type',
+  read: 'read',
+  userId: 'user_id',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
 });
 
-// 定义标签表
-export const tags = sqliteTable('tags', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  color: text('color').notNull(),
-  userId: text('user_id').notNull(),
-  selectable: integer('selectable', { mode: 'boolean' }).notNull().default(true), // 控制标签是否可被选择
-  createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull(),
+export const tags = createTable('tags', {
+  id: 'id',
+  name: 'name',
+  color: 'color',
+  userId: 'user_id',
+  selectable: 'selectable',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
 });
 
 // 初始化数据库表
