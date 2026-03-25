@@ -341,7 +341,6 @@ export const tasks = createTable('tasks', {
   notes: 'notes',
   isTodayTask: 'is_today_task',
   startDate: 'start_date',
-  dueDate: 'due_date',
   tags: 'tags',
   createdAt: 'created_at',
   updatedAt: 'updated_at',
@@ -504,7 +503,6 @@ async function performDatabaseInit() {
           notes TEXT,
           is_today_task INTEGER NOT NULL DEFAULT 0,
           start_date TEXT,
-          due_date TEXT,
           tags TEXT,
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL

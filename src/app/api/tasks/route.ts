@@ -132,23 +132,8 @@ export async function GET(request: NextRequest) {
         return a.completed ? 1 : -1;
       }
       
-      // 对于未完成的任务：按到期时间倒序，然后按创建时间倒序
+      // 对于未完成的任务：按创建时间倒序
       if (!a.completed && !b.completed) {
-        // 如果都有到期日，按到期日倒序
-        if (a.dueDate && b.dueDate) {
-          const dueDateComparison = new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
-          if (dueDateComparison !== 0) {
-            return dueDateComparison;
-          }
-        }
-        // 如果只有一个有到期日，有到期日的排在前面
-        if (a.dueDate && !b.dueDate) {
-          return -1;
-        }
-        if (!a.dueDate && b.dueDate) {
-          return 1;
-        }
-        // 如果都没有到期日或到期日相同，按创建时间倒序
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       }
       
@@ -161,8 +146,7 @@ export async function GET(request: NextRequest) {
       ...task,
       completed: Boolean(task.completed),
       isTodayTask: Boolean(task.isTodayTask),
-      startDate: task.startDate ? new Date(task.startDate) : undefined,
-      dueDate: task.dueDate ? new Date(task.dueDate) : undefined
+      startDate: task.startDate ? new Date(task.startDate) : undefined
     }));
 
     // 使用用户信息创建新的logger
@@ -212,23 +196,8 @@ export async function GET_TODAY(request: NextRequest) {
         return a.completed ? 1 : -1;
       }
       
-      // 对于未完成的任务：按到期时间倒序，然后按创建时间倒序
+      // 对于未完成的任务：按创建时间倒序
       if (!a.completed && !b.completed) {
-        // 如果都有到期日，按到期日倒序
-        if (a.dueDate && b.dueDate) {
-          const dueDateComparison = new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
-          if (dueDateComparison !== 0) {
-            return dueDateComparison;
-          }
-        }
-        // 如果只有一个有到期日，有到期日的排在前面
-        if (a.dueDate && !b.dueDate) {
-          return 1;
-        }
-        if (!a.dueDate && b.dueDate) {
-          return -1;
-        }
-        // 如果都没有到期日或到期日相同，按创建时间倒序
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       }
       
@@ -241,8 +210,7 @@ export async function GET_TODAY(request: NextRequest) {
       ...task,
       completed: Boolean(task.completed),
       isTodayTask: Boolean(task.isTodayTask),
-      startDate: task.startDate ? new Date(task.startDate) : undefined,
-      dueDate: task.dueDate ? new Date(task.dueDate) : undefined
+      startDate: task.startDate ? new Date(task.startDate) : undefined
     }));
     
     logger.info(`Today tasks retrieved successfully {"count":${tasksWithBoolean.length}}`);
@@ -278,7 +246,7 @@ export async function PUT(request: NextRequest) {
     
     // 解析请求体
     const body = await request.json();
-    const { id, title, completed, notes, isToday, startDate, dueDate, folderId, tags } = body;
+    const { id, title, completed, notes, isToday, startDate, folderId, tags } = body;
 
     // 验证必需字段
     if (!id) {
@@ -313,10 +281,6 @@ export async function PUT(request: NextRequest) {
 
     if (startDate !== undefined) {
       updateData.startDate = startDate;
-    }
-
-    if (dueDate !== undefined) {
-      updateData.dueDate = dueDate;
     }
 
     if (folderId !== undefined) {

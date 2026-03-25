@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Check, Trash2, Loader2, Calendar, User, FileText, Star, Clock } from "lucide-react"
+import { Check, Trash2, Loader2, Calendar, User, FileText, Star } from "lucide-react"
 import { Task } from "@/lib/types"
 import { useTodoStore, useTagFeatureStore } from "@/lib/store"
 import { TaskSteps } from "./task-steps"
@@ -27,10 +27,9 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
   const [editTitle, setEditTitle] = useState(task.title)
   const [editNotes, setEditNotes] = useState(task.notes || '')
   const [editStartDate, setEditStartDate] = useState(task.startDate ? new Date(task.startDate).toISOString().split('T')[0] : '')
-  const [editDueDate, setEditDueDate] = useState(task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '')
   const [isLoading, setIsLoading] = useState(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
-  const { toggleTask, updateTask, updateTaskNotes, toggleTodayTask, deleteTask, updateTaskStartDate, updateTaskDueDate, uploadTaskFile, updateTaskTags, getTaskFiles } = useTodoStore()
+  const { toggleTask, updateTask, updateTaskNotes, toggleTodayTask, deleteTask, updateTaskStartDate, uploadTaskFile, updateTaskTags, getTaskFiles } = useTodoStore()
   const { isEnabled: isTagFeatureEnabled } = useTagFeatureStore()
   const mdEditorRef = useRef<HTMLDivElement>(null)
   const taskFilesRef = useRef<{ reloadFiles: () => void } | null>(null)
@@ -40,9 +39,8 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
     setEditTitle(task.title)
     setEditNotes(task.notes || '')
     setEditStartDate(task.startDate ? new Date(task.startDate).toISOString().split('T')[0] : '')
-    setEditDueDate(task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '')
     setIsEditingTitle(false)
-  }, [task.id, task.title, task.notes, task.startDate, task.dueDate, task.updatedAt])
+  }, [task.id, task.title, task.notes, task.startDate, task.updatedAt])
 
   // 处理备注变化
   const handleNotesChange = (value: string | undefined) => {
@@ -242,115 +240,13 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
     }
   }
 
-  const handleDueDateSave = async () => {
-    const currentDueDate = task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ''
-    if (editDueDate === currentDueDate) return // No change needed
-    
-    setIsLoading(true)
-    try {
-      const success = await updateTaskDueDate(task.id, editDueDate || null)
-      if (success) {
-        // Check if the new due date is today
-        const today = new Date().toISOString().split('T')[0]
-        const isSettingToToday = editDueDate === today
-        
-        // If setting due date to today and task is not already a today task, add it to today task
-        if (isSettingToToday && !task.isTodayTask) {
-          const todayTaskSuccess = await toggleTodayTask(task.id)
-          if (todayTaskSuccess) {
-            // Update the task in the detail view with both due date and today task status
-            const updatedTask = { 
-              ...task, 
-              dueDate: editDueDate ? new Date(editDueDate) : undefined,
-              isTodayTask: true,
-              updatedAt: new Date() 
-            }
-            onUpdate(updatedTask)
-          } else {
-            // If adding to today tasks fails, still update the due date
-            const updatedTask = { 
-              ...task, 
-              dueDate: editDueDate ? new Date(editDueDate) : undefined, 
-              updatedAt: new Date() 
-            }
-            onUpdate(updatedTask)
-          }
-        } else {
-          // Update the task in the detail view
-          const updatedTask = { 
-            ...task, 
-            dueDate: editDueDate ? new Date(editDueDate) : undefined, 
-            updatedAt: new Date() 
-          }
-          onUpdate(updatedTask)
-        }
-      } else {
-        console.error('Failed to update task due date')
-        // Revert to original value on failure
-        setEditDueDate(currentDueDate)
-      }
-    } catch (error) {
-      console.error('Error updating task due date:', error)
-      // Revert to original value on error
-      setEditDueDate(currentDueDate)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   const handleToggleToday = async () => {
     setIsLoading(true)
     try {
       const success = await toggleTodayTask(task.id)
       if (success) {
-        // If adding to today tasks, only set due date to today, keep start date unchanged
-        if (!task.isTodayTask) {
-          const today = new Date().toISOString().split('T')[0]
-          const dueDateSuccess = await updateTaskDueDate(task.id, today)
-          if (dueDateSuccess) {
-            setEditDueDate(today)
-            // Update the task in the detail view
-            const updatedTask = { 
-              ...task, 
-              isTodayTask: !task.isTodayTask,
-              dueDate: new Date(today),
-              updatedAt: new Date()
-            }
-            onUpdate(updatedTask)
-          } else {
-            // If setting due date fails, still update the today task status
-            const updatedTask = { ...task, isTodayTask: !task.isTodayTask }
-            onUpdate(updatedTask)
-          }
-        } else {
-          // If removing from today tasks and due date is today, clear the due date, keep start date unchanged
-          const today = new Date().toISOString().split('T')[0]
-          const taskDueDate = task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : null
-          
-          if (taskDueDate === today) {
-            const dueDateSuccess = await updateTaskDueDate(task.id, null)
-            
-            if (dueDateSuccess) {
-              setEditDueDate('')
-              // Update the task in the detail view
-              const updatedTask = { 
-                ...task, 
-                isTodayTask: !task.isTodayTask,
-                dueDate: undefined,
-                updatedAt: new Date()
-              }
-              onUpdate(updatedTask)
-            } else {
-              // If clearing due date fails, still update the today task status
-              const updatedTask = { ...task, isTodayTask: !task.isTodayTask }
-              onUpdate(updatedTask)
-            }
-          } else {
-            // Update the task in the detail view
-            const updatedTask = { ...task, isTodayTask: !task.isTodayTask }
-            onUpdate(updatedTask)
-          }
-        }
+        const updatedTask = { ...task, isTodayTask: !task.isTodayTask, updatedAt: new Date() }
+        onUpdate(updatedTask)
       } else {
         console.error('Failed to toggle today task')
       }
@@ -460,7 +356,7 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
       <div className="flex-1 p-6 overflow-y-auto">
         <div className="space-y-6">
 
-          {/* Today Task and Due Date Section */}
+          {/* Today Task and Start Date Section */}
           <div className="space-y-3">
             <div className="flex items-center gap-4">
               {/* Today Task Toggle */}
@@ -524,36 +420,6 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
                 </div>
               </div>
 
-              {/* Due Date Section */}
-              <div className="w-48 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-gray-600" />
-                  <h3 className="text-sm font-medium text-gray-900">到期日</h3>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="relative w-full">
-                    <input
-                      type="date"
-                      value={editDueDate}
-                      onChange={(e) => setEditDueDate(e.target.value)}
-                      onBlur={handleDueDateSave}
-                      className="w-full h-10 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 cursor-pointer transition-colors"
-                      disabled={isLoading}
-                      id="due-date-input"
-                    />
-                    <div 
-                      className="absolute inset-0 cursor-pointer"
-                      onClick={() => {
-                        const input = document.getElementById('due-date-input') as HTMLInputElement;
-                        if (input && !isLoading) {
-                          input.focus();
-                          input.showPicker?.();
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
 

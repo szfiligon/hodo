@@ -15,7 +15,6 @@ export interface Task {
   notes?: string
   isTodayTask: boolean
   startDate?: Date
-  dueDate?: Date
   tags?: string
   files?: TaskFile[]
   createdAt: Date

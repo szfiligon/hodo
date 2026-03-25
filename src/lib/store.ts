@@ -16,9 +16,6 @@ const convertDates = (obj: any): any => {
     if (converted.startDate && typeof converted.startDate === 'string') {
       converted.startDate = new Date(converted.startDate)
     }
-    if (converted.dueDate && typeof converted.dueDate === 'string') {
-      converted.dueDate = new Date(converted.dueDate)
-    }
     return converted
   }
   return obj
@@ -130,7 +127,6 @@ interface TodoStore extends TaskListState {
   updateTask: (id: string, title: string) => Promise<boolean>
   updateTaskNotes: (id: string, notes: string) => Promise<boolean>
   updateTaskStartDate: (id: string, startDate: string | null) => Promise<boolean>
-  updateTaskDueDate: (id: string, dueDate: string | null) => Promise<boolean>
   updateTaskTags: (id: string, tags: string[]) => Promise<boolean>
   toggleTodayTask: (id: string) => Promise<boolean>
   moveTask: (taskId: string, folderId: string) => Promise<boolean>
@@ -661,44 +657,6 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
       return false
     } catch (error) {
       console.error('Error updating task notes:', error)
-      return false
-    }
-  },
-
-  updateTaskDueDate: async (id: string, dueDate: string | null) => {
-    try {
-      const response = await hodoFetch('/api/tasks', {
-        method: 'PUT',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id,
-          dueDate
-        }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        console.error('Failed to update task due date:', error)
-        return false
-      }
-
-      const data = await response.json()
-      if (data.success && data.task) {
-        // Convert date strings to Date objects and update local state
-        const taskWithDates = convertDates(data.task)
-        set((state) => ({
-          tasks: state.tasks.map(task =>
-            task.id === id ? taskWithDates : task
-          )
-        }))
-        return true
-      }
-      return false
-    } catch (error) {
-      console.error('Error updating task due date:', error)
       return false
     }
   },

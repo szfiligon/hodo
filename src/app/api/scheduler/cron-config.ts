@@ -11,23 +11,23 @@ export interface CronTaskConfig {
 export const CRON_TASKS: CronTaskConfig[] = [
   {
     id: 'overdue-tasks-scan',
-    name: '过期任务扫描',
+    name: '过期任务扫描(停用)',
     cronExpression: '0 * * * *', // 每小时执行一次
-    description: '扫描并处理过期的任务',
+    description: '到期日能力已移除，保留占位任务',
     enabled: true
   },
   {
     id: 'add-today-tasks',
-    name: '添加今日任务',
+    name: '添加今日任务(停用)',
     cronExpression: '0 * * * *', // 每小时执行一次
-    description: '将到期日为今天的任务自动添加为今日任务',
+    description: '到期日能力已移除，保留占位任务',
     enabled: true
   },
   {
     id: 'remove-expired-today-tasks',
-    name: '今日任务清理',
+    name: '今日任务清理(停用)',
     cronExpression: '0 * * * *', // 每小时执行一次
-    description: '清理过期的今日任务',
+    description: '到期日能力已移除，保留占位任务',
     enabled: true
   },
   {

@@ -208,10 +208,10 @@ export function TaskItem({ task, isSelected = false, isSystemFolder = false, onC
               <TaskTags tagsString={currentTask.tags} className="flex-shrink-0" />
             </div>
             
-            {(currentTask.startDate || currentTask.dueDate) && (
+            {currentTask.startDate && (
               <div className="flex items-center gap-1 text-xs text-gray-400 flex-shrink-0 ml-2">
                 <Clock className="h-3 w-3 flex-shrink-0" />
-                <span className="whitespace-nowrap">{formatDateRange(currentTask.startDate, currentTask.dueDate)}</span>
+                <span className="whitespace-nowrap">{formatDateRange(currentTask.startDate)}</span>
               </div>
             )}
           </div>
