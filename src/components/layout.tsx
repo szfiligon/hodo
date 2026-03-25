@@ -47,20 +47,30 @@ export function Layout({ children }: LayoutProps) {
   // 定期检查未读消息
   useEffect(() => {
     if (currentUser) {
-      // 初始检查
-      checkUnreadMessages()
+      // 初始检查：异步调度，避免 effect 同步 setState 报警告
+      const initialTimer = setTimeout(() => {
+        void checkUnreadMessages()
+      }, 0)
       
       // 每10分钟检查一次 (10 * 60 * 1000 = 600000 毫秒)
-      const interval = setInterval(checkUnreadMessages, 600000)
+      const interval = setInterval(() => {
+        void checkUnreadMessages()
+      }, 600000)
       
-      return () => clearInterval(interval)
+      return () => {
+        clearTimeout(initialTimer)
+        clearInterval(interval)
+      }
     }
   }, [currentUser])
 
   // 当切换到消息视图时，重新检查未读消息
   useEffect(() => {
     if (currentView === 'messages') {
-      checkUnreadMessages()
+      const timer = setTimeout(() => {
+        void checkUnreadMessages()
+      }, 0)
+      return () => clearTimeout(timer)
     }
   }, [currentView])
 
