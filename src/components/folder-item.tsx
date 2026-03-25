@@ -63,7 +63,7 @@ export function FolderItem({ folder, isSelected, onSelect }: FolderItemProps) {
       className={`group relative ${isDragging ? 'opacity-50' : ''}`}
     >
       {isEditing ? (
-        <div className="flex items-center gap-2 p-2">
+        <div className="flex items-center gap-2 p-1.5">
           <div
             className="h-4 w-4 rounded"
             style={{ backgroundColor: folder.color || '#0078d4' }}
@@ -103,7 +103,7 @@ export function FolderItem({ folder, isSelected, onSelect }: FolderItemProps) {
               setSelectedFolder(folder.id)
             }
           }}
-          className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-gray-100 transition-colors cursor-pointer ${
+          className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 text-sm rounded-lg hover:bg-gray-100 transition-colors cursor-pointer ${
             isSelected ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
           }`}
         >

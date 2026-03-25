@@ -171,7 +171,7 @@ export function TaskItem({ task, isSelected = false, isSystemFolder = false, onC
 
   return (
     <div 
-      className={`flex items-start gap-3 p-3 rounded-lg group cursor-pointer transition-colors ${
+      className={`flex items-start gap-2.5 px-2.5 py-2 rounded-lg group cursor-pointer transition-colors ${
         isSelected 
           ? 'bg-blue-50 outline outline-blue-200 outline-offset-0' 
           : 'hover:bg-gray-50'
@@ -181,7 +181,7 @@ export function TaskItem({ task, isSelected = false, isSystemFolder = false, onC
       <Button
         variant="ghost"
         size="icon"
-        className="h-6 w-6 rounded-full border-2 border-gray-300 hover:border-blue-500 hover:bg-blue-50 mt-0.5"
+        className="h-5 w-5 rounded-full border-2 border-gray-300 hover:border-blue-500 hover:bg-blue-50 mt-0.5"
         onClick={(e) => {
           e.stopPropagation()
           handleToggle()
@@ -210,7 +210,7 @@ export function TaskItem({ task, isSelected = false, isSystemFolder = false, onC
           />
         ) : (
           <div className="flex items-center min-w-0">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-1 min-w-0">
                             <span 
                 className={`truncate ${
                   currentTask.completed ? 'line-through text-gray-500' : 'text-gray-900'
@@ -223,7 +223,7 @@ export function TaskItem({ task, isSelected = false, isSystemFolder = false, onC
               <TaskTags tagsString={currentTask.tags} className="flex-shrink-0" />
             </div>
             
-            <div className="flex items-center gap-1 text-xs text-gray-400 flex-shrink-0 ml-2">
+            <div className="flex items-center gap-1 text-[11px] text-gray-400 flex-shrink-0 ml-2">
               <Calendar className="h-3 w-3 flex-shrink-0" />
               <div className="whitespace-nowrap">
                 {formatCreatedUpdatedRange(currentTask.createdAt, currentTask.updatedAt)}
@@ -240,7 +240,7 @@ export function TaskItem({ task, isSelected = false, isSystemFolder = false, onC
         </div>
       )}
       
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
         {isEditing ? (
           <>
             <Button

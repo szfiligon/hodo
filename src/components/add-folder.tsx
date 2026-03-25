@@ -78,7 +78,7 @@ export function AddFolder() {
     return (
       <Button
         variant="ghost"
-        className="w-full justify-start text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+        className="w-full h-8 justify-start text-gray-500 hover:text-gray-700 hover:bg-gray-50"
         onClick={() => setIsAdding(true)}
       >
         <Plus className="h-4 w-4 mr-2" />
@@ -88,9 +88,9 @@ export function AddFolder() {
   }
 
   return (
-    <div ref={addDivRef} className="p-3 border-t">
+    <div ref={addDivRef} className="p-2.5 border-t">
       <form onSubmit={handleSubmit}>
-        <div className="space-y-3">
+        <div className="space-y-2">
           <div className="flex items-center gap-2">
             <div
               className="h-4 w-4 rounded"

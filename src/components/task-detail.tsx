@@ -270,12 +270,12 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between p-6 border-b border-gray-200">
-        <div className="flex items-center gap-3 flex-1">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+        <div className="flex items-center gap-2.5 flex-1">
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 rounded-full border-2 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+            className="h-7 w-7 rounded-full border-2 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
             onClick={handleToggle}
             disabled={isLoading}
           >
@@ -292,13 +292,13 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
               onChange={(e) => setEditTitle(e.target.value)}
               onKeyDown={handleTitleKeyPress}
               onBlur={handleTitleSave}
-              className="flex-1 text-lg font-semibold text-gray-900 bg-transparent border-none outline-none focus:ring-0"
+              className="flex-1 text-base font-semibold text-gray-900 bg-transparent border-none outline-none focus:ring-0"
               autoFocus
               disabled={isLoading}
             />
           ) : (
             <h2 
-              className="text-lg font-semibold text-gray-900 cursor-pointer hover:text-blue-600 flex-1"
+              className="text-base font-semibold text-gray-900 cursor-pointer hover:text-blue-600 flex-1"
               onClick={() => setIsEditingTitle(true)}
             >
               {task.title}
@@ -308,7 +308,7 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-gray-500 hover:text-gray-700"
+          className="h-7 w-7 text-gray-500 hover:text-gray-700"
           onClick={handleDelete}
           disabled={isLoading}
         >
@@ -321,14 +321,14 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-6 overflow-y-auto">
-        <div className="space-y-6">
+      <div className="flex-1 p-4 overflow-y-auto">
+        <div className="space-y-4">
 
           {/* Today Task Section */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <div className="flex items-center gap-4">
               {/* Today Task Toggle */}
-              <div className="w-48 space-y-3">
+              <div className="w-44 space-y-2">
                 <div className="flex items-center gap-2">
                   <Star className="h-4 w-4 text-gray-600" />
                   <h3 className="text-sm font-medium text-gray-900">今日任务</h3>
@@ -337,7 +337,7 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
                   <Button
                     variant={task.isTodayTask ? "default" : "outline"}
                     size="sm"
-                    className={`flex items-center justify-between w-full h-10 ${
+                    className={`flex items-center justify-between w-full h-9 ${
                       task.isTodayTask 
                         ? 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100' 
                         : 'border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -362,7 +362,7 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
 
           {/* Tags Section */}
           {isTagFeatureEnabled && (
-            <div className="space-y-3 pt-4 border-t border-gray-200">
+            <div className="space-y-2 pt-3 border-t border-gray-200">
               <TagSelector
                 selectedTags={(() => {
                   try {
@@ -392,7 +392,7 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
           )}
 
           {/* Notes Section */}
-          <div className="space-y-3 pt-4 border-t border-gray-200">
+          <div className="space-y-2 pt-3 border-t border-gray-200">
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-gray-600" />
               <h3 className="text-sm font-medium text-gray-900">备注</h3>
@@ -535,7 +535,7 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
           </div>
 
           {/* Files Section */}
-          <div className="space-y-3 pt-4 border-t border-gray-200">
+          <div className="space-y-2 pt-3 border-t border-gray-200">
             <TaskFiles 
               taskId={task.id} 
               ref={taskFilesRef}
@@ -548,7 +548,7 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
 
 
           {/* Task Information */}
-          <div className="space-y-4 pt-4 border-t border-gray-200">
+          <div className="space-y-3 pt-3 border-t border-gray-200">
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Calendar className="h-4 w-4" />
               <span>Created: {formatDate(task.createdAt)}</span>

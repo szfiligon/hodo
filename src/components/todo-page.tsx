@@ -263,22 +263,22 @@ export function TodoPage() {
     <div className="h-full flex relative">
       {/* Task List Panel */}
       <div className={`${selectedTask ? 'w-1/2' : 'w-full'} border-r border-gray-200 overflow-y-auto`}>
-        <div className="p-6">
+        <div className="p-4">
           {/* 搜索框，仅样式，无逻辑 */}
           <SearchBox 
             placeholder="搜索任务..." 
             onResultSelect={handleSearchResultSelect}
           />
           
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-4">
+          <div className="mb-4">
+            <div className="flex items-center gap-2.5 mb-2.5">
               <div
-                className="h-6 w-6 rounded"
+                className="h-5 w-5 rounded"
                 style={{ backgroundColor: folderColor }}
               />
-              <h1 className="text-2xl font-bold text-gray-900">{folderName}</h1>
+              <h1 className="text-xl font-bold text-gray-900">{folderName}</h1>
             </div>
-            <p className="text-gray-600">
+            <p className="text-sm text-gray-600">
               {filteredTasks.length} {filteredTasks.length === 1 ? '个任务' : '个任务'}
               {completedTasks.length > 0 && (
                 <span className="text-green-600">
@@ -293,7 +293,7 @@ export function TodoPage() {
             </p>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* Add Task - Only show for user folders, not system folders */}
             {selectedFolderId && selectedFolderId !== 'all-tasks' && selectedFolderId !== 'today-tasks' && (
               <AddTask folderId={selectedFolderId} />
@@ -304,12 +304,12 @@ export function TodoPage() {
               tasks={folderFilteredTasks}
               selectedTags={selectedTags}
               onTagsChange={handleTagsChange}
-              className="mb-4"
+              className="mb-3"
             />
             {/* Active Tasks */}
             {activeTasks.length > 0 && (
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-3">进行中的任务</h2>
+                <h2 className="text-base font-semibold text-gray-900 mb-2">进行中的任务</h2>
                 <div className="space-y-1">
                   {activeTasks.map((task) => (
                     <TaskItem 
@@ -330,7 +330,7 @@ export function TodoPage() {
             {/* Completed Tasks */}
             {completedTasks.length > 0 && (
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-3">已完成</h2>
+                <h2 className="text-base font-semibold text-gray-900 mb-2">已完成</h2>
                 <div className="space-y-1">
                   {completedTasks.map((task) => (
                     <TaskItem 
@@ -350,7 +350,7 @@ export function TodoPage() {
 
             {/* Empty State */}
             {filteredTasks.length === 0 && (
-              <div className="text-center py-12">
+              <div className="text-center py-10">
                 <div className="text-gray-400 mb-4">
                   <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />

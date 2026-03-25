@@ -46,7 +46,7 @@ export function AddTask({ folderId }: AddTaskProps) {
   }
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} className="p-3">
+    <form ref={formRef} onSubmit={handleSubmit} className="p-2">
       <input
         ref={inputRef}
         type="text"
@@ -54,7 +54,7 @@ export function AddTask({ folderId }: AddTaskProps) {
         onChange={(e) => setTaskTitle(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="添加任务，按回车提交"
-        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors"
+        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-colors"
         autoFocus
         disabled={isLoading}
       />
