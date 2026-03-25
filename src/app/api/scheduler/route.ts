@@ -2,19 +2,31 @@ import { NextResponse } from 'next/server';
 import { createLogger, generateTraceId } from '@/lib/logger';
 import { overdueTasksTask, featureReminderTask, removeExpiredTodayTasksTask, cleanupLogsTask, addTodayTasksTask } from './tasks';
 import { CRON_TASKS } from './cron-config';
+import Bree from 'bree';
+import path from 'path';
 
 // Cron 定时任务管理器
 class CronScheduler {
-  private cronTasks: Map<string, unknown> = new Map(); // cron.ScheduledTask
+  private bree: Bree | null = null;
+  private cronTasks: Set<string> = new Set();
   private isRunning: boolean = false;
   private logger: ReturnType<typeof createLogger>;
+  private readonly workerPath = path.join(
+    process.cwd(),
+    'src',
+    'app',
+    'api',
+    'scheduler',
+    'workers',
+    'run-task.mjs'
+  );
 
   constructor(logger: ReturnType<typeof createLogger>) {
     this.logger = logger;
   }
 
   // 启动调度器
-  start() {
+  async start() {
     if (this.isRunning) {
       this.logger.info('[SCHEDULER] Scheduler already running');
       return false;
@@ -24,24 +36,28 @@ class CronScheduler {
     this.isRunning = true;
 
     try {
-      // 执行一次功能提醒（项目启动时）
+      await this.loadCronTasksFromConfig();
       this.executeFeatureReminderOnce();
-      
-      // 从配置文件加载 cron 任务
-      this.loadCronTasksFromConfig();
-      
       this.logger.info('[SCHEDULER] Cron scheduler started successfully');
       return true;
     } catch (error) {
       this.logger.error('[SCHEDULER] Failed to start cron scheduler', { error });
+      this.isRunning = false;
       return false;
     }
   }
 
   // 从配置文件加载 cron 任务
-  private loadCronTasksFromConfig() {
+  private async loadCronTasksFromConfig() {
     this.logger.info('[SCHEDULER] Loading cron tasks from config');
-    
+
+    const jobs: Array<{
+      name: string;
+      cron: string;
+      path: string;
+      worker: { workerData: { taskId: string } };
+    }> = [];
+
     for (const taskConfig of CRON_TASKS) {
       if (!taskConfig.enabled) {
         this.logger.info(`[SCHEDULER] Skipping disabled task: ${taskConfig.name}`);
@@ -49,24 +65,51 @@ class CronScheduler {
       }
       
       // 根据任务ID获取对应的任务函数
-      const taskFunction = this.getTaskFunction(taskConfig.id);
-      if (!taskFunction) {
+      if (!this.getTaskFunction(taskConfig.id)) {
         this.logger.warn(`[SCHEDULER] Task function not found for: ${taskConfig.id}`);
         continue;
       }
       
       try {
-        this.addCronTask(taskConfig.id, taskFunction, taskConfig.cronExpression);
+        jobs.push({
+          name: taskConfig.id,
+          cron: taskConfig.cronExpression,
+          path: this.workerPath,
+          worker: {
+            workerData: {
+              taskId: taskConfig.id
+            }
+          }
+        });
+        this.cronTasks.add(taskConfig.id);
         this.logger.info(`[SCHEDULER] Loaded cron task: ${taskConfig.name} (${taskConfig.cronExpression})`);
       } catch (error) {
         this.logger.error(`[SCHEDULER] Failed to load cron task: ${taskConfig.name}`, { error });
       }
     }
+
+    this.bree = new Bree({
+      root: false,
+      doRootCheck: false,
+      jobs,
+      // Worker 仅负责触发消息，任务逻辑在主线程执行，避免在 worker 内耦合应用上下文。
+      workerMessageHandler: (name, message) => {
+        const taskId = typeof message?.taskId === 'string' ? message.taskId : name;
+        void this.executeTask(taskId);
+      }
+    });
+
+    await this.bree.start();
+
+    // 与历史行为保持一致：加载后每个任务先执行一次。
+    for (const taskId of this.cronTasks) {
+      void this.executeTask(taskId);
+    }
   }
 
   // 根据任务ID获取对应的任务函数
-  private getTaskFunction(taskId: string): (() => void) | null {
-    const taskMap: Record<string, () => void> = {
+  private getTaskFunction(taskId: string): (() => Promise<void> | void) | null {
+    const taskMap: Record<string, () => Promise<void> | void> = {
       'overdue-tasks-scan': overdueTasksTask,
       'add-today-tasks': addTodayTasksTask,
       'remove-expired-today-tasks': removeExpiredTodayTasksTask,
@@ -76,52 +119,19 @@ class CronScheduler {
     return taskMap[taskId] || null;
   }
 
-  // 添加 cron 定时任务
-  addCronTask(taskId: string, callback: () => void, cronExpression: string) {
+  private async executeTask(taskId: string) {
+    const task = this.getTaskFunction(taskId);
+    if (!task) {
+      this.logger.warn(`[SCHEDULER] Task function not found for: ${taskId}`);
+      return;
+    }
+
     try {
-      // 动态导入 node-cron，避免在未安装时出错
-      // 注意：这里需要确保 node-cron 包已安装
-      // const cron = require('node-cron');
-      
-      if (this.cronTasks.has(taskId)) {
-        this.logger.warn(`[SCHEDULER] Cron task ${taskId} already exists, removing old one`);
-        this.removeCronTask(taskId);
-      }
-
-      // 由于 node-cron 可能未安装，这里使用简单的定时器模拟
-      const task = {
-        stop: () => {
-          if (this.cronTasks.has(taskId)) {
-            this.cronTasks.delete(taskId);
-          }
-        }
-      };
-
-      this.cronTasks.set(taskId, task);
-      
-      this.logger.info(`[SCHEDULER] Cron task added: ${taskId} (${cronExpression})`);
-      
-      // 立即执行一次
-      this.logger.info(`[SCHEDULER] Executing cron task immediately: ${taskId}`);
-      callback();
-      
-      return true;
+      this.logger.info(`[SCHEDULER] Executing cron task: ${taskId}`);
+      await task();
     } catch (error) {
-      this.logger.error(`[SCHEDULER] Failed to add cron task ${taskId}`, { error });
-      throw error;
+      this.logger.error(`[SCHEDULER] Failed to execute cron task ${taskId}`, { error });
     }
-  }
-
-  // 移除 cron 定时任务
-  removeCronTask(taskId: string) {
-    const task = this.cronTasks.get(taskId);
-    if (task) {
-      // 对于模拟任务，没有真正的 stop 方法，所以这里只是删除
-      this.cronTasks.delete(taskId);
-      this.logger.info(`[SCHEDULER] Cron task removed: ${taskId}`);
-      return true;
-    }
-    return false;
   }
 
   // 执行一次功能提醒（项目启动时）
@@ -136,17 +146,15 @@ class CronScheduler {
   }
 
   // 停止所有任务
-  stop() {
+  async stop() {
     this.logger.info('[SCHEDULER] Stopping all cron tasks');
-    
-    // 停止所有 cron 任务
-    for (const [taskId] of this.cronTasks) {
-      // 对于模拟任务，没有真正的 stop 方法，所以这里只是删除
-      this.cronTasks.delete(taskId);
-      this.logger.info(`[SCHEDULER] Stopped cron task: ${taskId}`);
+
+    if (this.bree) {
+      await this.bree.stop();
+      this.bree = null;
     }
+
     this.cronTasks.clear();
-    
     this.isRunning = false;
     this.logger.info('[SCHEDULER] All cron tasks stopped');
   }
@@ -156,7 +164,8 @@ class CronScheduler {
     return {
       isRunning: this.isRunning,
       cronTasks: Array.from(this.cronTasks.keys()),
-      totalTasks: this.cronTasks.size
+      totalTasks: this.cronTasks.size,
+      engine: 'bree'
     };
   }
 }
@@ -180,7 +189,7 @@ export async function POST() {
   
   try {
     const scheduler = getScheduler();
-    const result = scheduler.start();
+    const result = await scheduler.start();
     
     logger.info('Scheduler started', { result });
     
@@ -229,7 +238,7 @@ export async function DELETE() {
   
   try {
     const scheduler = getScheduler();
-    scheduler.stop();
+    await scheduler.stop();
     
     logger.info('Scheduler stopped');
     
