@@ -59,56 +59,15 @@ export function formatDateRange(startDate: Date | undefined, dueDate: Date | und
   return ""
 } 
 
-// 扩展 Window 接口以包含 Electron API
-declare global {
-  interface Window {
-    electronAPI?: {
-      openExternal: (url: string) => Promise<boolean>;
-      setZoomFactor: (zoomFactor: number) => Promise<{ success: boolean; error?: string }>;
-      getZoomFactor: () => Promise<{ success: boolean; zoomFactor?: number; error?: string }>;
-    };
-    require?: (module: string) => unknown;
-  }
-}
-
-/**
- * 检测是否在 Electron 环境中
- */
-export const isElectron = () => {
-  return typeof window !== 'undefined' && 
-         (window.electronAPI || window.require);
-};
-
 /**
  * 在系统默认浏览器中打开外部链接
  * @param url 要打开的URL
- * @param fallbackToWindowOpen 是否在失败时回退到 window.open，默认为 true
  */
-export const openExternalLink = async (url: string, fallbackToWindowOpen: boolean = true): Promise<boolean> => {
-  console.log('openExternalLink called with URL:', url);
-  console.log('isElectron():', isElectron());
-  
-  // 始终使用系统默认浏览器打开外部链接
-  if (isElectron() && window.electronAPI?.openExternal) {
-    // 在 Electron 环境中，使用 electronAPI 在系统默认浏览器中打开
-    console.log('Using electronAPI.openExternal for system browser');
-    try {
-      const result = await window.electronAPI.openExternal(url);
-      console.log('External link opened successfully');
-      return result;
-    } catch (error) {
-      console.error('Error using electronAPI.openExternal:', error);
-      if (fallbackToWindowOpen) {
-        // 回退到普通浏览器打开
-        window.open(url, '_blank');
-        return true;
-      }
-      return false;
-    }
-  } else {
-    console.log('Not in Electron or electronAPI not available, using window.open');
-    // 在普通浏览器环境中，正常打开
-    window.open(url, '_blank');
-    return true;
+export const openExternalLink = async (url: string): Promise<boolean> => {
+  if (typeof window === 'undefined') {
+    return false;
   }
+
+  window.open(url, '_blank');
+  return true;
 }; 

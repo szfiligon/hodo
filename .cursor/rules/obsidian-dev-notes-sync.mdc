@@ -1,0 +1,50 @@
+---
+description: Auto-sync code updates to project Obsidian dev notes and use as project knowledge base
+alwaysApply: true
+---
+
+# Obsidian Dev Notes Sync Rule
+
+## Core Requirement
+
+The assistant must automatically write project update notes to Obsidian after code changes and use those notes as the first knowledge source for architecture/interface/business/module questions.
+
+## Project Identification
+
+1. Identify project name from current workspace root directory.
+2. Project name = last path segment of current working directory.
+3. For this project, all notes must be written to:
+   `/Users/wanglongw/Documents/obsidian-vault/dev-notes/{projectName}/`
+
+## Document Write Rules
+
+After each code update, automatically generate/update markdown notes:
+
+1. Target file path:
+   `/Users/wanglongw/Documents/obsidian-vault/dev-notes/{projectName}/updates/{yyyy-mm-dd}.md`
+2. If file does not exist, create it.
+3. If file exists, append a new section.
+4. Every entry must include:
+   - Update purpose
+   - Diff change summary
+   - Involved modules and files
+   - Impact on architecture/interfaces/data structures
+   - TODO or follow-up suggestions
+
+## Knowledge Base Usage Rules
+
+1. Treat `/Users/wanglongw/Documents/obsidian-vault/dev-notes/` as project knowledge base.
+2. For architecture/interface/business logic/module design questions, first retrieve docs under:
+   `/Users/wanglongw/Documents/obsidian-vault/dev-notes/{projectName}/`
+3. If related content exists, responses must stay consistent with documented content.
+4. If documentation is missing, explicitly remind the user to add/complete docs.
+
+## Workflow Trigger
+
+When user says "开始更新" or submits code changes, do all steps automatically:
+
+1. Identify current project name.
+2. Analyze code diff.
+3. Generate update note content.
+4. Write/append to the matching Obsidian update file.
+5. Use that project documentation as context in subsequent development.

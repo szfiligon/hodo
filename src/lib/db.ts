@@ -1,5 +1,5 @@
-import { drizzle } from 'drizzle-orm/libsql';
-import { createClient } from '@libsql/client';
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { sql } from 'drizzle-orm';
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 import { getDatabasePath, initializeUserDataDirectories } from './user-data';
@@ -7,10 +7,10 @@ import { getDatabasePath, initializeUserDataDirectories } from './user-data';
 // 初始化用户数据目录
 initializeUserDataDirectories();
 
-// 创建 SQLite 客户端
-const client = createClient({
-  url: getDatabasePath(),
-});
+// 使用 better-sqlite3 直连本地 SQLite，避免额外本机动态库依赖
+const databaseUrl = getDatabasePath();
+const databasePath = databaseUrl.startsWith('file:') ? databaseUrl.slice(5) : databaseUrl;
+const client = new Database(databasePath);
 
 // 创建 drizzle 实例
 export const db = drizzle(client);

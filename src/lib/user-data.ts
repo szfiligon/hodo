@@ -111,7 +111,6 @@ export function getUserDataInfo() {
     databasePath: getDatabasePath(),
     logsPath: getLogsPath(),
     logFilePath: getLogFilePath(),
-    platform: process.platform,
-    isPackaged: process.env.ELECTRON_IS_PACKAGED === 'true'
+    platform: process.platform
   };
 } 
