@@ -147,12 +147,22 @@ export function TaskItem({ task, isSelected = false, isSystemFolder = false, onC
   }
 
   const isPinned = selectedFolderId ? isTaskPinned(currentTask.id, selectedFolderId) : false
-  const formatDateTime = (date: Date) => new Date(date).toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  const formatDate = (date: Date, includeYear: boolean) => {
+    const d = new Date(date)
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return includeYear ? `${year}/${month}/${day}` : `${month}/${day}`
+  }
+
+  const formatCreatedUpdatedRange = (createdAt: Date, updatedAt: Date) => {
+    const currentYear = new Date().getFullYear()
+    const includeYear =
+      new Date(createdAt).getFullYear() !== currentYear ||
+      new Date(updatedAt).getFullYear() !== currentYear
+
+    return `${formatDate(createdAt, includeYear)}-${formatDate(updatedAt, includeYear)}`
+  }
 
   // 获取可移动的目标文件夹（排除当前文件夹）
   const availableFolders = folders.filter(folder => 
@@ -215,9 +225,8 @@ export function TaskItem({ task, isSelected = false, isSystemFolder = false, onC
             
             <div className="flex items-center gap-1 text-xs text-gray-400 flex-shrink-0 ml-2">
               <Calendar className="h-3 w-3 flex-shrink-0" />
-              <div className="whitespace-nowrap leading-tight">
-                <div>创建: {formatDateTime(currentTask.createdAt)}</div>
-                <div>更新: {formatDateTime(currentTask.updatedAt)}</div>
+              <div className="whitespace-nowrap">
+                {formatCreatedUpdatedRange(currentTask.createdAt, currentTask.updatedAt)}
               </div>
             </div>
           </div>
