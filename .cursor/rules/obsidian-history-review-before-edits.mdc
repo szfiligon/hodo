@@ -1,0 +1,32 @@
+---
+description: Read project change history in a low-token way before modifying code
+alwaysApply: true
+---
+
+# Read History Before Edits
+
+Before making any code change in this project, the assistant must review the project's historical update notes first, using a low-token workflow.
+
+## Required Sources
+
+- Project notes root:
+  `/Users/wanglongw/Documents/obsidian-vault/dev-notes/{projectName}/`
+- Update history directory:
+  `/Users/wanglongw/Documents/obsidian-vault/dev-notes/{projectName}/updates/`
+
+## Low-Token Workflow
+
+- Identify the current project name from the workspace root.
+- Read the full list of dated note files under the project's `updates/` directory before editing.
+- Scan all dated note files at a lightweight level first: filenames, dates, and relevant headings or short sections when needed.
+- Do not read every historical file in full by default.
+- Expand and read only the files or sections relevant to the current task, such as matching features, modules, migrations, removals, deployment changes, or known pitfalls.
+- Always treat the relevant history as implementation context before editing.
+- Escalate to broader history reading only when the task involves architecture changes, database changes, deployment changes, cross-module refactors, or unclear prior decisions.
+- If there is any conflict between current code assumptions and documented history, stop and resolve that conflict first.
+
+## Response Behavior
+
+- When preparing a code change, rely on the project history as a required context source.
+- Prefer scanning all history plus targeted reading over full-history reading, unless the task is high risk.
+- If the history notes are missing or incomplete, explicitly warn the user before making risky changes.

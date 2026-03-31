@@ -1,5 +1,5 @@
 ---
-description: Auto-sync code updates to project Obsidian dev notes and use as project knowledge base
+description: Auto-sync code updates to project Obsidian dev notes with strict daily date partitioning
 alwaysApply: true
 ---
 
@@ -7,44 +7,46 @@ alwaysApply: true
 
 ## Core Requirement
 
-The assistant must automatically write project update notes to Obsidian after code changes and use those notes as the first knowledge source for architecture/interface/business/module questions.
+After any code change, the assistant must write or append an update note to the current project's Obsidian notes and use those notes as the first knowledge source for architecture, interface, business logic, and module questions.
 
-## Project Identification
+## Project Path
 
-1. Identify project name from current workspace root directory.
-2. Project name = last path segment of current working directory.
-3. For this project, all notes must be written to:
-   `/Users/wanglongw/Documents/obsidian-vault/dev-notes/{projectName}/`
+- Project name = the last path segment of the current workspace root.
+- Notes root = `/Users/wanglongw/Documents/obsidian-vault/dev-notes/{projectName}/`
 
-## Document Write Rules
+## Strict Date Partition Rule
 
-After each code update, automatically generate/update markdown notes:
+- The update file must always be chosen from the real current date at write time.
+- Always recompute today's date before every write using the current system date in the active session.
+- Never reuse a date from chat history, summaries, previous tool output, or earlier note paths.
+- Daily note path format is fixed:
+  `/Users/wanglongw/Documents/obsidian-vault/dev-notes/{projectName}/updates/{yyyy-mm-dd}.md`
+- Append only if the target file basename exactly matches today's date.
+- If today's file does not exist, create it.
+- Do not write a new update entry into an older date file unless the user explicitly requests a backfill or correction for that historical date.
+- If the calendar date has changed since the last write, start a new file for the new date instead of appending to yesterday's file.
 
-1. Target file path:
-   `/Users/wanglongw/Documents/obsidian-vault/dev-notes/{projectName}/updates/{yyyy-mm-dd}.md`
-2. If file does not exist, create it.
-3. If file exists, append a new section.
-4. Every entry must include:
-   - Update purpose
-   - Diff change summary
-   - Involved modules and files
-   - Impact on architecture/interfaces/data structures
-   - TODO or follow-up suggestions
+## Update Entry Requirements
 
-## Knowledge Base Usage Rules
+Each appended entry must include:
+- Update purpose
+- Diff change summary
+- Involved modules and files
+- Impact on architecture, interfaces, or data structures
+- TODO or follow-up suggestions
 
-1. Treat `/Users/wanglongw/Documents/obsidian-vault/dev-notes/` as project knowledge base.
-2. For architecture/interface/business logic/module design questions, first retrieve docs under:
-   `/Users/wanglongw/Documents/obsidian-vault/dev-notes/{projectName}/`
-3. If related content exists, responses must stay consistent with documented content.
-4. If documentation is missing, explicitly remind the user to add/complete docs.
+## Knowledge Base Usage
+
+- Treat `/Users/wanglongw/Documents/obsidian-vault/dev-notes/` as the project knowledge base.
+- For architecture, interface, business logic, or module design questions, check the current project's notes first.
+- If relevant documentation exists, keep responses consistent with it.
+- If documentation is missing, explicitly remind the user.
 
 ## Workflow Trigger
 
-When user says "开始更新" or submits code changes, do all steps automatically:
-
-1. Identify current project name.
-2. Analyze code diff.
-3. Generate update note content.
-4. Write/append to the matching Obsidian update file.
-5. Use that project documentation as context in subsequent development.
+When the user says `开始更新` or submits code changes:
+- Identify the current project name.
+- Analyze the code diff.
+- Recompute today's date immediately before writing.
+- Write or append only to today's matching note file.
+- Use the project notes as context in later work.
