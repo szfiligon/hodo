@@ -21,8 +21,15 @@ export async function POST(request: NextRequest) {
       return authResult;
     }
     // 解析请求体
-    const body = await request.json();
-    const { name, color } = body;
+    const body: unknown = await request.json();
+    const name =
+      typeof (body as { name?: unknown })?.name === 'string'
+        ? (body as { name: string }).name
+        : '';
+    const color =
+      typeof (body as { color?: unknown })?.color === 'string'
+        ? (body as { color: string }).color
+        : undefined;
 
     // 验证必需字段
     if (!name) {
@@ -157,8 +164,19 @@ export async function PUT(request: NextRequest) {
     }
     
     // 解析请求体
-    const body = await request.json();
-    const { id, name, color } = body;
+    const body: unknown = await request.json();
+    const id =
+      typeof (body as { id?: unknown })?.id === 'string'
+        ? (body as { id: string }).id
+        : '';
+    const name =
+      typeof (body as { name?: unknown })?.name === 'string'
+        ? (body as { name: string }).name
+        : undefined;
+    const color =
+      typeof (body as { color?: unknown })?.color === 'string'
+        ? (body as { color: string }).color
+        : undefined;
 
     // 验证必需字段
     if (!id) {
@@ -258,8 +276,11 @@ export async function DELETE(request: NextRequest) {
     }
 
     // 获取该文件夹下的所有任务ID
-    const folderTasks = await db.select({ id: tasks.id }).from(tasks).where(sql`${tasks.folderId} = ${id} AND ${tasks.userId} = ${authResult.user.userId}`);
-    const taskIds = folderTasks.map(task => task.id);
+    const folderTasks = await db
+      .select()
+      .from(tasks)
+      .where(sql`${tasks.folderId} = ${id} AND ${tasks.userId} = ${authResult.user.userId}`);
+    const taskIds = folderTasks.map(task => String(task.id));
 
     // 如果有任务，先删除相关的任务文件
     if (taskIds.length > 0) {

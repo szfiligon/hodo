@@ -116,7 +116,8 @@ async function getOrSetSystemBaseTime(): Promise<Date> {
     
     if (configResult.length > 0) {
       // 如果存在基准时间配置，返回它
-      const baseTimeStr = configResult[0].value;
+      const config = configResult[0] as { value?: string };
+      const baseTimeStr = typeof config.value === 'string' ? config.value : new Date().toISOString();
       return new Date(baseTimeStr);
     } else {
       // 如果不存在，创建基准时间配置
@@ -191,8 +192,8 @@ async function validateUnlockStatus(user: JWTPayload): Promise<NextResponse | nu
       }, { status: 403 });
     }
 
-    const record = records[0];
-    const unlockCode = record.unlockCode;
+    const record = records[0] as { unlockCode?: string; date?: string; username?: string };
+    const unlockCode = typeof record.unlockCode === 'string' ? record.unlockCode : '';
     const [encryptedAesKeyAndIv, encryptedData] = unlockCode.split(',');
     
     if (!encryptedAesKeyAndIv || !encryptedData) {
@@ -208,8 +209,8 @@ async function validateUnlockStatus(user: JWTPayload): Promise<NextResponse | nu
     
     if (
       decryptedUsername?.trim() !== user.username.trim() ||
-      decryptedDate?.trim() !== record.date.trim() ||
-      decryptedUsername?.trim() !== record.username.trim()
+      decryptedDate?.trim() !== String(record.date ?? '').trim() ||
+      decryptedUsername?.trim() !== String(record.username ?? '').trim()
     ) {
       return NextResponse.json({ 
         error: ERROR_CODES.UNLOCK_ERROR.code,

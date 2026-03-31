@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { messages } from '@/lib/db'
-import { desc, sql } from 'drizzle-orm'
+import { sql } from 'drizzle-orm'
 import { authenticateUser } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
@@ -23,27 +23,29 @@ export async function GET(request: NextRequest) {
 
     // 查询消息总数（查询当前用户的消息和系统消息）
     const totalCountResult = await db
-      .select({ count: sql<number>`count(*)` })
+      .select({ count: sql`count(*)` })
       .from(messages)
       .where(sql`${messages.userId} = ${user.userId} OR ${messages.userId} = 'system'`)
     
-    const totalCount = totalCountResult[0]?.count || 0
+    const totalCount = Number(totalCountResult[0]?.count || 0)
 
-    // 分页查询消息，按创建时间倒序排列（查询当前用户的消息和系统消息）
-    const messagesList = await db
-      .select({
-        id: messages.id,
-        msg: messages.msg,
-        type: messages.type,
-        read: messages.read,
-        createdAt: messages.createdAt,
-        updatedAt: messages.updatedAt,
-      })
+    // 查询全部后在内存中分页，兼容当前 db 适配层能力
+    const allMessages = await db
+      .select()
       .from(messages)
       .where(sql`${messages.userId} = ${user.userId} OR ${messages.userId} = 'system'`)
-      .orderBy(desc(messages.createdAt))
-      .limit(actualPageSize)
-      .offset(actualOffset)
+
+    const messagesList = allMessages
+      .sort((a, b) => new Date(String(b.createdAt)).getTime() - new Date(String(a.createdAt)).getTime())
+      .slice(actualOffset, actualOffset + actualPageSize)
+      .map((message) => ({
+        id: String(message.id),
+        msg: String(message.msg),
+        type: String(message.type),
+        read: Boolean(message.read),
+        createdAt: message.createdAt,
+        updatedAt: message.updatedAt,
+      }))
 
     return NextResponse.json({
       success: true,

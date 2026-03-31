@@ -25,8 +25,11 @@ export async function POST(
     const userId = authResult.user.userId;
     
     // 解析请求体
-    const body = await request.json();
-    const { tagId } = body;
+    const body: unknown = await request.json();
+    const tagId =
+      typeof (body as { tagId?: unknown })?.tagId === 'string'
+        ? (body as { tagId: string }).tagId
+        : '';
     
     // 验证必需字段
     if (!tagId) {
@@ -39,7 +42,7 @@ export async function POST(
     
     // 验证任务是否属于当前用户
     const task = await db
-      .select({ id: tasks.id, tags: tasks.tags })
+      .select()
       .from(tasks)
       .where(sql`${tasks.id} = ${taskId} AND ${tasks.userId} = ${userId}`)
       .limit(1);
@@ -52,7 +55,11 @@ export async function POST(
       );
     }
     
-    const currentTags = task[0].tags ? task[0].tags.split(',').filter(t => t.trim()) : [];
+    const taskRecord = task[0] as { tags?: string | null };
+    const currentTags =
+      typeof taskRecord.tags === 'string'
+        ? taskRecord.tags.split(',').filter(t => t.trim())
+        : [];
     
     // 检查标签是否已经存在
     if (currentTags.includes(tagId)) {

@@ -22,14 +22,7 @@ export async function GET(request: NextRequest) {
     
     // 查询所有标签
     const tagsList = await db
-      .select({
-        id: tags.id,
-        name: tags.name,
-        color: tags.color,
-        selectable: tags.selectable,
-        createdAt: tags.createdAt,
-        updatedAt: tags.updatedAt,
-      })
+      .select()
       .from(tags)
       .where(sql`${tags.userId} = ${userId}`)
       .orderBy(sql`${tags.color} ASC, ${tags.name} DESC`);
@@ -67,8 +60,19 @@ export async function POST(request: NextRequest) {
     }
     
     // 解析请求体
-    const body = await request.json();
-    const { name, color, selectable = true } = body;
+    const body: unknown = await request.json();
+    const name =
+      typeof (body as { name?: unknown })?.name === 'string'
+        ? (body as { name: string }).name
+        : '';
+    const color =
+      typeof (body as { color?: unknown })?.color === 'string'
+        ? (body as { color: string }).color
+        : '';
+    const selectable =
+      typeof (body as { selectable?: unknown })?.selectable === 'boolean'
+        ? (body as { selectable: boolean }).selectable
+        : true;
     
     // 验证必需字段
     if (!name || !color) {
@@ -83,7 +87,7 @@ export async function POST(request: NextRequest) {
     
     // 检查标签名称是否已存在
     const existingTag = await db
-      .select({ id: tags.id })
+      .select()
       .from(tags)
       .where(sql`${tags.name} = ${name} AND ${tags.userId} = ${userId}`)
       .limit(1);

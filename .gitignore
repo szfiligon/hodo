@@ -51,3 +51,5 @@ next-env.d.ts
 
 #zip
 *.zip
+*.tar.gz
+*.tar.gz.sha256

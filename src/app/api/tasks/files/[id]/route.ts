@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/jwt'
 import { db, taskFiles, tasks } from '@/lib/db'
-import { eq, and } from 'drizzle-orm'
+import { sql } from 'drizzle-orm'
 import { unlink } from 'fs/promises'
 import { existsSync } from 'fs'
 
@@ -25,17 +25,23 @@ export async function DELETE(
     const userId = decoded.userId
 
     // Get file record
-    const fileRecord = await db.select().from(taskFiles).where(eq(taskFiles.id, fileId)).limit(1)
+    const fileRecord = await db
+      .select()
+      .from(taskFiles)
+      .where(sql`${taskFiles.id} = ${fileId}`)
+      .limit(1)
     if (fileRecord.length === 0) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 })
     }
 
-    const file = fileRecord[0]
+    const file = fileRecord[0] as { taskId: string; filePath: string }
 
     // Verify task belongs to user
-    const task = await db.select().from(tasks).where(
-      and(eq(tasks.id, file.taskId), eq(tasks.userId, userId))
-    ).limit(1)
+    const task = await db
+      .select()
+      .from(tasks)
+      .where(sql`${tasks.id} = ${file.taskId} AND ${tasks.userId} = ${userId}`)
+      .limit(1)
 
     if (task.length === 0) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 })
@@ -47,7 +53,7 @@ export async function DELETE(
     }
 
     // Delete file record from database
-    await db.delete(taskFiles).where(eq(taskFiles.id, fileId))
+    await db.delete(taskFiles).where(sql`${taskFiles.id} = ${fileId}`)
 
     return NextResponse.json({ success: true })
   } catch (error) {

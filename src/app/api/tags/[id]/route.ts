@@ -25,8 +25,19 @@ export async function PUT(
     const userId = authResult.user.userId;
     
     // 解析请求体
-    const body = await request.json();
-    const { name, color, selectable } = body;
+    const body: unknown = await request.json();
+    const name =
+      typeof (body as { name?: unknown })?.name === 'string'
+        ? (body as { name: string }).name
+        : '';
+    const color =
+      typeof (body as { color?: unknown })?.color === 'string'
+        ? (body as { color: string }).color
+        : '';
+    const selectable =
+      typeof (body as { selectable?: unknown })?.selectable === 'boolean'
+        ? (body as { selectable: boolean }).selectable
+        : undefined;
     
     // 验证必需字段
     if (!name || !color) {
@@ -39,7 +50,7 @@ export async function PUT(
     
     // 验证标签是否属于当前用户
     const existingTag = await db
-      .select({ id: tags.id })
+      .select()
       .from(tags)
       .where(sql`${tags.id} = ${id} AND ${tags.userId} = ${userId}`)
       .limit(1);
@@ -54,7 +65,7 @@ export async function PUT(
     
     // 检查标签名称是否与其他标签重复
     const duplicateTag = await db
-      .select({ id: tags.id })
+      .select()
       .from(tags)
       .where(sql`${tags.name} = ${name} AND ${tags.userId} = ${userId} AND ${tags.id} != ${id}`)
       .limit(1);
@@ -117,7 +128,7 @@ export async function DELETE(
     
     // 验证标签是否属于当前用户
     const existingTag = await db
-      .select({ id: tags.id })
+      .select()
       .from(tags)
       .where(sql`${tags.id} = ${id} AND ${tags.userId} = ${userId}`)
       .limit(1);

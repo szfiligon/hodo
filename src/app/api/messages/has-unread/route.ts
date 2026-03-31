@@ -15,11 +15,11 @@ export async function GET(request: NextRequest) {
 
     // 查询是否有未读消息（当前用户的消息和系统消息）
     const unreadCountResult = await db
-      .select({ count: sql<number>`count(*)` })
+      .select({ count: sql`count(*)` })
       .from(messages)
       .where(sql`(${messages.userId} = ${user.userId} OR ${messages.userId} = 'system') AND ${messages.read} = 0`)
     
-    const unreadCount = unreadCountResult[0]?.count || 0
+    const unreadCount = Number(unreadCountResult[0]?.count || 0)
     const hasUnread = unreadCount > 0
 
     return NextResponse.json({

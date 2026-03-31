@@ -18,8 +18,15 @@ export async function POST(request: NextRequest) {
     logger.info('Starting user creation API request');
     
     // 解析请求体
-    const body = await request.json();
-    const { username, password } = body;
+    const body: unknown = await request.json();
+    const username =
+      typeof (body as { username?: unknown })?.username === 'string'
+        ? (body as { username: string }).username
+        : '';
+    const password =
+      typeof (body as { password?: unknown })?.password === 'string'
+        ? (body as { password: string }).password
+        : '';
 
     // 验证必需字段
     if (!username || !password) {
@@ -101,8 +108,23 @@ export async function PUT(request: NextRequest) {
     }
     
     // 解析请求体
-    const body = await request.json();
-    const { id, username, currentPassword, newPassword } = body;
+    const body: unknown = await request.json();
+    const id =
+      typeof (body as { id?: unknown })?.id === 'string'
+        ? (body as { id: string }).id
+        : '';
+    const username =
+      typeof (body as { username?: unknown })?.username === 'string'
+        ? (body as { username: string }).username
+        : undefined;
+    const currentPassword =
+      typeof (body as { currentPassword?: unknown })?.currentPassword === 'string'
+        ? (body as { currentPassword: string }).currentPassword
+        : undefined;
+    const newPassword =
+      typeof (body as { newPassword?: unknown })?.newPassword === 'string'
+        ? (body as { newPassword: string }).newPassword
+        : undefined;
 
     // 验证必需字段
     if (!id) {
@@ -124,7 +146,9 @@ export async function PUT(request: NextRequest) {
     }
 
     // 如果提供了用户名，检查用户名是否已被其他用户使用
-    if (username && username !== existingUser[0].username) {
+    const existingUserRecord = existingUser[0] as { username?: string; password?: string };
+
+    if (username && username !== existingUserRecord.username) {
       const usernameExists = await db.select().from(users).where(sql`${users.username} = ${username} AND ${users.id} != ${id}`).limit(1);
       if (usernameExists.length > 0) {
         logger.warn(`Username ${username} is already in use by another user`);
@@ -138,7 +162,7 @@ export async function PUT(request: NextRequest) {
     // 如果提供了密码，验证当前密码（除非是首次设置密码）
     if (currentPassword && newPassword) {
       // 如果用户当前没有密码（首次设置），则不需要验证当前密码
-      if (existingUser[0].password && existingUser[0].password !== currentPassword) {
+      if (existingUserRecord.password && existingUserRecord.password !== currentPassword) {
         logger.warn(`Current password is incorrect for user ${id}`);
         return NextResponse.json(
           { error: 'Current password is incorrect' },
@@ -177,10 +201,13 @@ export async function PUT(request: NextRequest) {
     userLogger.info(`User updated successfully {"userId":"${id}"}`);
     
     // 返回更新后的用户信息，包含密码字段但不包含实际密码值
-    const userResponse = {
-      ...updatedUser[0],
-      password: updatedUser[0].password ? '***' : '' // 返回占位符而不是实际密码
-    };
+    const updatedUserRecord = updatedUser[0] as Record<string, unknown> | undefined;
+    const userResponse = updatedUserRecord
+      ? {
+          ...updatedUserRecord,
+          password: updatedUserRecord.password ? '***' : ''
+        }
+      : null;
     
     return NextResponse.json({
       user: userResponse,
@@ -238,9 +265,10 @@ export async function GET(request: NextRequest) {
       userLogger.info(`User retrieved successfully {"userId":"${id}"}`);
       
       // 返回用户信息，包含密码字段但不包含实际密码值
+      const userRecord = user[0] as Record<string, unknown>;
       const userResponse = {
-        ...user[0],
-        password: user[0].password ? '***' : '' // 返回占位符而不是实际密码
+        ...userRecord,
+        password: userRecord.password ? '***' : ''
       };
       
       return NextResponse.json({

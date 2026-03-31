@@ -25,7 +25,8 @@ export async function GET(request: NextRequest) {
       
       let remainingDays = 30;
       if (configResult.length > 0) {
-        const baseTime = new Date(configResult[0].value);
+        const config = configResult[0] as { value?: string };
+        const baseTime = new Date(String(config.value));
         const now = new Date();
         const trialEndTime = new Date(baseTime);
         trialEndTime.setDate(trialEndTime.getDate() + 30);

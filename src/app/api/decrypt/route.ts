@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { decryptData, validatePrivateKey } from '@/lib/crypto';
 import { createLogger, generateTraceId } from '@/lib/logger';
+import { sql } from 'drizzle-orm';
 
 export async function POST(request: NextRequest) {
   const traceId = generateTraceId();
@@ -18,8 +19,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const { encryptedAesKeyAndIv, encryptedData } = body;
+    const body: unknown = await request.json();
+    const encryptedAesKeyAndIv =
+      typeof (body as { encryptedAesKeyAndIv?: unknown })?.encryptedAesKeyAndIv === 'string'
+        ? (body as { encryptedAesKeyAndIv: string }).encryptedAesKeyAndIv
+        : '';
+    const encryptedData =
+      typeof (body as { encryptedData?: unknown })?.encryptedData === 'string'
+        ? (body as { encryptedData: string }).encryptedData
+        : '';
 
     if (!encryptedAesKeyAndIv || !encryptedData) {
       logger.error('Missing required parameters');
@@ -83,13 +91,23 @@ export async function POST(request: NextRequest) {
     // 写入解锁记录
     const { db, unlockRecords } = await import('@/lib/db');
     const unlockCode = `${encryptedAesKeyAndIv},${encryptedData}`; // 存储完整的解锁码原文：AES信息,密文
-    // 按username唯一索引，存在则更新date和unlockCode，不存在则插入
-    await db.insert(unlockRecords)
-      .values({ username: decryptedUsername, date: decryptedDate, unlockCode })
-      .onConflictDoUpdate({
-        target: unlockRecords.username,
-        set: { date: decryptedDate, unlockCode }
-      });
+    // 按 username 唯一约束做手动 upsert（兼容当前 db 适配层）
+    const existingRecord = await db
+      .select()
+      .from(unlockRecords)
+      .where(sql`${unlockRecords.username} = ${decryptedUsername}`)
+      .limit(1);
+
+    if (existingRecord.length > 0) {
+      await db
+        .update(unlockRecords)
+        .set({ date: decryptedDate, unlockCode })
+        .where(sql`${unlockRecords.username} = ${decryptedUsername}`);
+    } else {
+      await db
+        .insert(unlockRecords)
+        .values({ username: decryptedUsername, date: decryptedDate, unlockCode });
+    }
     
     return NextResponse.json({
       decryptedData,

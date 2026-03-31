@@ -14,7 +14,19 @@ export const runtime = 'nodejs';
  */
 export async function POST(request: NextRequest) {
   try {
-    const { username, date, empNo } = await request.json();
+    const body: unknown = await request.json();
+    const username =
+      typeof (body as { username?: unknown })?.username === 'string'
+        ? (body as { username: string }).username
+        : '';
+    const date =
+      typeof (body as { date?: unknown })?.date === 'string'
+        ? (body as { date: string }).date
+        : '';
+    const empNo =
+      typeof (body as { empNo?: unknown })?.empNo === 'string'
+        ? (body as { empNo: string }).empNo
+        : '';
 
     if (!username || !date || !empNo) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });

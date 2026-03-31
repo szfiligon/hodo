@@ -17,8 +17,13 @@ export async function POST(request: NextRequest) {
     logger.info('Starting user login API request');
     
     // 解析请求体
-    const body = await request.json();
-    const { username, password } = body;
+    const body: unknown = await request.json();
+    const username = typeof (body as { username?: unknown })?.username === 'string'
+      ? (body as { username: string }).username
+      : '';
+    const password = typeof (body as { password?: unknown })?.password === 'string'
+      ? (body as { password: string }).password
+      : '';
 
     // 验证必需字段
     if (!username || !password) {
@@ -40,7 +45,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const user = userQuery[0];
+    const user = userQuery[0] as { id: string; username: string; password: string };
 
     // 验证密码（使用哈希比较）
     const passwordMatch = await bcrypt.compare(password, user.password);

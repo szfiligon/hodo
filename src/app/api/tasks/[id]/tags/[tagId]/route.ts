@@ -26,7 +26,7 @@ export async function DELETE(
     
     // 验证任务是否属于当前用户
     const task = await db
-      .select({ id: tasks.id, tags: tasks.tags })
+      .select()
       .from(tasks)
       .where(sql`${tasks.id} = ${taskId} AND ${tasks.userId} = ${userId}`)
       .limit(1);
@@ -39,7 +39,11 @@ export async function DELETE(
       );
     }
     
-    const currentTags = task[0].tags ? task[0].tags.split(',').filter(t => t.trim()) : [];
+    const taskRecord = task[0] as { tags?: string | null };
+    const currentTags =
+      typeof taskRecord.tags === 'string'
+        ? taskRecord.tags.split(',').filter(t => t.trim())
+        : [];
     
     // 检查标签是否存在
     if (!currentTags.includes(tagId)) {

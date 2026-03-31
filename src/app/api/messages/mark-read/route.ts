@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { messages } from '@/lib/db'
-import { inArray, and, sql } from 'drizzle-orm'
 import { authenticateUser } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
@@ -23,16 +22,18 @@ export async function POST(request: NextRequest) {
     }
 
     // 更新消息状态为已读（更新当前用户的消息和系统消息）
+    const placeholders = messageIds.map(() => '?').join(', ')
+
     await db
       .update(messages)
       .set({ 
         read: true, 
         updatedAt: new Date().toISOString() 
       })
-      .where(and(
-        inArray(messages.id, messageIds),
-        sql`${messages.userId} = ${user.userId} OR ${messages.userId} = 'system'`
-      ))
+      .where({
+        text: `"messages"."id" IN (${placeholders}) AND ("messages"."user_id" = ? OR "messages"."user_id" = 'system')`,
+        params: [...messageIds, user.userId]
+      })
 
     return NextResponse.json({ 
       success: true, 

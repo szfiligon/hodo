@@ -37,13 +37,12 @@ export async function GET(request: NextRequest) {
     const userId = authResult.user.userId;
 
     // 先搜索匹配的标签ID
-    const matchingTags = await db.select({
-      id: tags.id
-    })
-    .from(tags)
-    .where(sql`${tags.userId} = ${userId} AND ${tags.name} LIKE ${`%${searchQuery}%`}`);
+    const matchingTags = await db
+      .select()
+      .from(tags)
+      .where(sql`${tags.userId} = ${userId} AND ${tags.name} LIKE ${`%${searchQuery}%`}`);
 
-    const matchingTagIds = matchingTags.map(tag => tag.id);
+    const matchingTagIds = matchingTags.map(tag => String(tag.id));
     
     logger.info(`Found ${matchingTags.length} matching tags for query "${searchQuery}": ${matchingTagIds.join(', ')}`);
     
@@ -58,35 +57,33 @@ export async function GET(request: NextRequest) {
     
     // 使用SQLite的LIKE操作符进行模糊搜索
     // 搜索任务标题、备注和标签名称
-    const taskResults = await db.select({
-      id: tasks.id,
-      title: tasks.title,
-      type: sql`'task'`.as('type'),
-      completed: tasks.completed,
-      folderId: tasks.folderId,
-      notes: tasks.notes,
-      tags: tasks.tags,
-      createdAt: tasks.createdAt
-    })
-    .from(tasks)
-    .where(sql`${tasks.userId} = ${userId} AND (
-      ${tasks.title} LIKE ${`%${searchQuery}%`} OR 
-      (${tasks.notes} IS NOT NULL AND ${tasks.notes} LIKE ${`%${searchQuery}%`}) OR
-      ${tagSearchCondition}
-    )`)
-    .orderBy(sql`${tasks.createdAt} DESC`);
+    const taskResults = await db
+      .select()
+      .from(tasks)
+      .where(sql`${tasks.userId} = ${userId} AND (
+        ${tasks.title} LIKE ${`%${searchQuery}%`} OR 
+        (${tasks.notes} IS NOT NULL AND ${tasks.notes} LIKE ${`%${searchQuery}%`}) OR
+        ${tagSearchCondition}
+      )`)
 
     // 按创建时间倒序
     const allResults = [...taskResults]
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      .sort((a, b) => new Date(String(b.createdAt)).getTime() - new Date(String(a.createdAt)).getTime())
+      .map((result) => ({
+        id: String(result.id),
+        title: String(result.title),
+        type: 'task' as const,
+        completed: Boolean(result.completed),
+        folderId: String(result.folderId),
+        notes: result.notes ? String(result.notes) : undefined,
+        tags: result.tags ? String(result.tags) : undefined,
+        createdAt: String(result.createdAt)
+      }));
 
     logger.info(`Search results: ${taskResults.length} tasks, total: ${allResults.length}`);
 
     // 转换布尔值
-    const resultsWithBoolean = allResults.map(result => ({
-      ...result,
-      completed: Boolean(result.completed)
-    }));
+    const resultsWithBoolean = allResults;
 
     // 使用用户信息创建新的logger
     const userLogger = createLogger('search.route', traceId, {

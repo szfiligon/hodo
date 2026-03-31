@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/jwt'
 import { db, tasks, taskFiles } from '@/lib/db'
-import { eq, and } from 'drizzle-orm'
+import { sql } from 'drizzle-orm'
 import { writeFile } from 'fs/promises'
 import { join } from 'path'
 import { getTaskUploadsPath } from '@/lib/server-utils'
@@ -33,9 +33,11 @@ export async function POST(
     logger.info(`File upload request received {"taskId":"${taskId}","userId":"${userId}"}`)
 
     // Verify task exists and belongs to user
-    const task = await db.select().from(tasks).where(
-      and(eq(tasks.id, taskId), eq(tasks.userId, userId))
-    ).limit(1)
+    const task = await db
+      .select()
+      .from(tasks)
+      .where(sql`${tasks.id} = ${taskId} AND ${tasks.userId} = ${userId}`)
+      .limit(1)
 
     if (task.length === 0) {
       logger.warn(`Task not found or not owned by user {"taskId":"${taskId}","userId":"${userId}"}`)
@@ -43,8 +45,23 @@ export async function POST(
     }
 
     // Parse JSON body for base64 file upload
-    const body = await request.json()
-    const { fileName, fileData, fileType, fileSize } = body
+    const body: unknown = await request.json()
+    const fileName =
+      typeof (body as { fileName?: unknown })?.fileName === 'string'
+        ? (body as { fileName: string }).fileName
+        : ''
+    const fileData =
+      typeof (body as { fileData?: unknown })?.fileData === 'string'
+        ? (body as { fileData: string }).fileData
+        : ''
+    const fileType =
+      typeof (body as { fileType?: unknown })?.fileType === 'string'
+        ? (body as { fileType: string }).fileType
+        : ''
+    const fileSize =
+      typeof (body as { fileSize?: unknown })?.fileSize === 'number'
+        ? (body as { fileSize: number }).fileSize
+        : 0
 
     if (!fileName || !fileData || !fileType) {
       logger.warn('Missing required file information')
@@ -178,9 +195,11 @@ export async function GET(
     const userId = decoded.userId
 
     // Verify task exists and belongs to user
-    const task = await db.select().from(tasks).where(
-      and(eq(tasks.id, taskId), eq(tasks.userId, userId))
-    ).limit(1)
+    const task = await db
+      .select()
+      .from(tasks)
+      .where(sql`${tasks.id} = ${taskId} AND ${tasks.userId} = ${userId}`)
+      .limit(1)
 
     if (task.length === 0) {
       logger.warn(`Task not found or not owned by user {"taskId":"${taskId}","userId":"${userId}"}`)
@@ -188,7 +207,10 @@ export async function GET(
     }
 
     // Get files for the task
-    const files = await db.select().from(taskFiles).where(eq(taskFiles.taskId, taskId))
+    const files = await db
+      .select()
+      .from(taskFiles)
+      .where(sql`${taskFiles.taskId} = ${taskId}`)
 
     logger.info(`Task files retrieved successfully {"taskId":"${taskId}","count":${files.length}}`)
     return NextResponse.json(files)
