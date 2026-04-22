@@ -20,13 +20,25 @@ interface TaskItemProps {
   task: Task
   isSelected?: boolean
   isSystemFolder?: boolean
+  folderName?: string
+  showFolderHint?: boolean
   onClick?: () => void
   onUpdate?: (updatedTask: Task) => void
   onDelete?: (taskId: string) => void
   hideEditDelete?: boolean // 新增：控制是否隐藏编辑和删除按钮
 }
 
-export function TaskItem({ task, isSelected = false, isSystemFolder = false, onClick, onUpdate, onDelete, hideEditDelete = false }: TaskItemProps) {
+export function TaskItem({
+  task,
+  isSelected = false,
+  isSystemFolder = false,
+  folderName,
+  showFolderHint = false,
+  onClick,
+  onUpdate,
+  onDelete,
+  hideEditDelete = false
+}: TaskItemProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
   const [isLoading, setIsLoading] = useState(false)
@@ -218,6 +230,15 @@ export function TaskItem({ task, isSelected = false, isSystemFolder = false, onC
               >
                 {currentTask.title}
               </span>
+
+              {showFolderHint && folderName && (
+                <span
+                  className="max-w-28 truncate rounded border border-border bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
+                  title={folderName}
+                >
+                  {folderName}
+                </span>
+              )}
               
               {/* 标签显示 - 紧跟任务标题 */}
               <TaskTags tagsString={currentTask.tags} className="flex-shrink-0" />

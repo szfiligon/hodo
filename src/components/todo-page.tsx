@@ -70,6 +70,12 @@ export function TodoPage() {
     return { folderName: '', folderColor: '#0078d4' };
   }, [selectedFolderId, selectedFolder]);
 
+  const shouldShowTaskFolderHint = selectedFolderId === 'all-tasks' || selectedFolderId === 'today-tasks'
+
+  const folderNameMap = useMemo(() => {
+    return new Map(userFolders.map((folder) => [folder.id, folder.name]))
+  }, [userFolders])
+
   // 获取置顶任务列表
   const pinnedTaskIds = useMemo(() => {
     if (!selectedFolderId) return []
@@ -317,6 +323,8 @@ export function TodoPage() {
                       task={task} 
                       isSelected={selectedTask?.id === task.id}
                       isSystemFolder={selectedFolderId === 'all-tasks' || selectedFolderId === 'today-tasks'}
+                      folderName={folderNameMap.get(task.folderId)}
+                      showFolderHint={shouldShowTaskFolderHint}
                       onClick={() => handleTaskClick(task)}
                       onUpdate={handleTaskUpdate}
                       onDelete={handleTaskDelete}
@@ -338,6 +346,8 @@ export function TodoPage() {
                       task={task} 
                       isSelected={selectedTask?.id === task.id}
                       isSystemFolder={selectedFolderId === 'all-tasks' || selectedFolderId === 'today-tasks'}
+                      folderName={folderNameMap.get(task.folderId)}
+                      showFolderHint={shouldShowTaskFolderHint}
                       onClick={() => handleTaskClick(task)}
                       onUpdate={handleTaskUpdate}
                       onDelete={handleTaskDelete}
