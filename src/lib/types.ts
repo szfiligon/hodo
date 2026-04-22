@@ -55,3 +55,23 @@ export interface UnlockRecord {
   date: string; // yyyyMMdd
   unlockCode: string;
 } 
+
+export type SearchMode = "all" | "media"
+
+export type SearchResultType = "task" | "image" | "file"
+
+export interface SearchResult {
+  id: string
+  title: string
+  type: SearchResultType
+  createdAt: string
+  completed?: boolean
+  folderId?: string
+  taskId?: string
+  taskTitle?: string
+  notes?: string
+  tags?: string
+  mimeType?: string
+  fileSize?: number
+  fileId?: string
+}

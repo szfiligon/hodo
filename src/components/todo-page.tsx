@@ -1,30 +1,24 @@
 "use client"
 
-import { useState, useRef, useEffect, useMemo } from "react"
+import { useState, useRef, useEffect, useMemo, useCallback } from "react"
 import { useTodoStore } from "@/lib/store"
 import { TaskItem } from "./task-item"
 import { AddTask } from "./add-task"
 import { TaskDetail } from "./task-detail"
 import { SearchBox } from "./search-box"
+import { SearchMediaPanel } from "./search-media-panel"
 import { TagFilter } from "./tag-filter"
-import { Task } from "@/lib/types"
+import { Task, SearchMode, SearchResult } from "@/lib/types"
 import { openExternalLink } from "@/lib/utils"
-
-interface SearchResult {
-  id: string
-  title: string
-  type: 'task' | 'step'
-  completed: boolean
-  folderId?: string
-  taskId?: string
-  notes?: string
-  createdAt: string
-}
 
 export function TodoPage() {
   const { selectedFolderId, folders, tasks, currentUser, loadTodayTasks, getPinnedTasks, pinnedTasksUpdateTrigger } = useTodoStore()
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [searchMode, setSearchMode] = useState<SearchMode>("all")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
   
   // Filter folders by current user
   const userFolders = folders.filter(folder => folder.userId === currentUser?.id)
@@ -132,58 +126,56 @@ export function TodoPage() {
     setSelectedTags(tags)
   }
 
-  // 处理搜索结果选择
-  const handleSearchResultSelect = async (result: SearchResult) => {
+  const openTaskById = async (taskId: string) => {
     const { getTaskById, setSelectedFolder } = useTodoStore.getState()
-    
-    if (result.type === 'task') {
-      // 如果是任务，先尝试在本地查找
-      let task = tasks.find(t => t.id === result.id)
-      
-      // 如果本地没有找到，通过API获取
-      if (!task) {
-        const fetchedTask = await getTaskById(result.id)
-        if (fetchedTask) {
-          // 将获取到的任务添加到本地状态
-          useTodoStore.setState(state => ({
-            tasks: [...state.tasks, fetchedTask]
-          }))
-          task = fetchedTask
-        }
+
+    let task = tasks.find(t => t.id === taskId)
+
+    if (!task) {
+      const fetchedTask = await getTaskById(taskId)
+      if (fetchedTask) {
+        useTodoStore.setState(state => ({
+          tasks: [...state.tasks, fetchedTask]
+        }))
+        task = fetchedTask
       }
-      
-      if (task) {
-        setSelectedTask(task)
-        // 如果任务不在当前文件夹，切换到对应的文件夹
-        if (task.folderId !== selectedFolderId) {
-          setSelectedFolder(task.folderId)
-        }
-      }
-    } else if (result.type === 'step' && result.taskId) {
-      // 如果是步骤，查找对应的任务并打开详情
-      let task = tasks.find(t => t.id === result.taskId)
-      
-      // 如果本地没有找到，通过API获取
-      if (!task) {
-        const fetchedTask = await getTaskById(result.taskId)
-        if (fetchedTask) {
-          // 将获取到的任务添加到本地状态
-          useTodoStore.setState(state => ({
-            tasks: [...state.tasks, fetchedTask]
-          }))
-          task = fetchedTask
-        }
-      }
-      
-      if (task) {
-        setSelectedTask(task)
-        // 如果任务不在当前文件夹，切换到对应的文件夹
-        if (task.folderId !== selectedFolderId) {
-          setSelectedFolder(task.folderId)
-        }
+    }
+
+    if (task) {
+      setSelectedTask(task)
+      if (task.folderId !== selectedFolderId) {
+        setSelectedFolder(task.folderId)
       }
     }
   }
+
+  // 处理搜索结果选择
+  const handleSearchResultSelect = async (result: SearchResult) => {
+    if (result.type === 'task') {
+      await openTaskById(result.id)
+      return
+    }
+    if (result.taskId) {
+      await openTaskById(result.taskId)
+    }
+  }
+
+  const handleSearchStateChange = useCallback(({
+    query,
+    mode,
+    results,
+    isLoading,
+  }: {
+    query: string
+    mode: SearchMode
+    results: SearchResult[]
+    isLoading: boolean
+  }) => {
+    setSearchQuery(query)
+    setSearchMode(mode)
+    setSearchResults(results)
+    setSearchLoading(isLoading)
+  }, [])
 
   // 处理外部链接点击
   const handleExternalLink = async (url: string) => {
@@ -207,9 +199,18 @@ export function TodoPage() {
   // 当文件夹切换时，重置标签筛选
   useEffect(() => {
     setSelectedTags([])
+    setSearchMode("all")
+    setSearchQuery("")
+    setSearchResults([])
+    setSearchLoading(false)
   }, [selectedFolderId])
 
   const detailPanelRef = useRef<HTMLDivElement>(null)
+  const hasMediaResults = searchResults.some((result) => result.type === "image" || result.type === "file")
+  const isMediaSearchActive =
+    searchMode === "media" &&
+    searchQuery.trim().length > 0 &&
+    (searchLoading || hasMediaResults)
 
   useEffect(() => {
     if (!selectedTask) return
@@ -272,10 +273,23 @@ export function TodoPage() {
         <div className="p-4">
           {/* 搜索框，仅样式，无逻辑 */}
           <SearchBox 
+            key={selectedFolderId}
             placeholder="搜索任务..." 
             onResultSelect={handleSearchResultSelect}
+            onSearchStateChange={handleSearchStateChange}
           />
-          
+
+          {isMediaSearchActive && (
+            <SearchMediaPanel
+              query={searchQuery}
+              results={searchResults}
+              isLoading={searchLoading}
+              onOpenTask={openTaskById}
+            />
+          )}
+
+          {!isMediaSearchActive && (
+            <>
           <div className="mb-4">
             <div className="flex items-center gap-2.5 mb-2.5">
               <div
@@ -371,6 +385,8 @@ export function TodoPage() {
               </div>
             )}
           </div>
+            </>
+          )}
         </div>
       </div>
 

@@ -4,23 +4,20 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { Search, CheckCircle, Circle, FileText } from "lucide-react"
 import { getAuthHeaders } from "@/lib/store"
 import { useTagsCache } from "@/lib/hooks/use-tags-cache"
+import { SearchMode, SearchResult } from "@/lib/types"
 
-interface SearchResult {
-  id: string
-  title: string
-  type: 'task' | 'step'
-  completed: boolean
-  folderId?: string
-  taskId?: string
-  notes?: string
-  tags?: string
-  createdAt: string
+interface SearchStatePayload {
+  query: string
+  mode: SearchMode
+  results: SearchResult[]
+  isLoading: boolean
 }
 
 interface SearchBoxProps {
   placeholder?: string
-  onSearch?: (query: string) => void
+  onSearch?: (query: string, mode: SearchMode) => void
   onResultSelect?: (result: SearchResult) => void
+  onSearchStateChange?: (payload: SearchStatePayload) => void
   disabled?: boolean
 }
 
@@ -28,22 +25,30 @@ export function SearchBox({
   placeholder = "搜索任务标题、备注或标签...", 
   onSearch,
   onResultSelect,
+  onSearchStateChange,
   disabled = false 
 }: SearchBoxProps) {
   const [searchQuery, setSearchQuery] = useState("")
+  const [searchMode, setSearchMode] = useState<SearchMode>("all")
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const onSearchStateChangeRef = useRef(onSearchStateChange)
   const { tags } = useTagsCache()
 
-  const performSearch = useCallback(async (query: string) => {
+  useEffect(() => {
+    onSearchStateChangeRef.current = onSearchStateChange
+  }, [onSearchStateChange])
+
+  const performSearch = useCallback(async (query: string, mode: SearchMode) => {
     if (!query.trim()) return
 
     setIsLoading(true)
+    onSearchStateChangeRef.current?.({ query, mode, results: [], isLoading: true })
     try {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`, {
+      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&mode=${mode}`, {
         headers: {
           ...getAuthHeaders(),
         }
@@ -53,11 +58,13 @@ export function SearchBox({
         const data = await response.json()
         if (data.success) {
           setSearchResults(data.results)
-          setShowDropdown(data.results.length > 0)
+          onSearchStateChangeRef.current?.({ query, mode, results: data.results, isLoading: false })
+          setShowDropdown(mode === "all" && data.results.length > 0)
         }
       }
     } catch (error) {
       console.error('Search error:', error)
+      onSearchStateChangeRef.current?.({ query, mode, results: [], isLoading: false })
     } finally {
       setIsLoading(false)
     }
@@ -72,11 +79,12 @@ export function SearchBox({
     if (searchQuery.trim().length === 0) {
       setSearchResults([])
       setShowDropdown(false)
+      onSearchStateChangeRef.current?.({ query: "", mode: searchMode, results: [], isLoading: false })
       return
     }
 
     searchTimeoutRef.current = setTimeout(async () => {
-      await performSearch(searchQuery)
+      await performSearch(searchQuery, searchMode)
     }, 300)
 
     return () => {
@@ -84,7 +92,7 @@ export function SearchBox({
         clearTimeout(searchTimeoutRef.current)
       }
     }
-  }, [searchQuery, performSearch])
+  }, [searchQuery, searchMode, performSearch])
 
   // 点击外部关闭下拉框
   useEffect(() => {
@@ -103,7 +111,12 @@ export function SearchBox({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setSearchQuery(value)
-    onSearch?.(value)
+    onSearch?.(value, searchMode)
+  }
+
+  const handleModeChange = (mode: SearchMode) => {
+    setSearchMode(mode)
+    onSearch?.(searchQuery, mode)
   }
 
   const handleResultClick = (result: SearchResult) => {
@@ -125,7 +138,9 @@ export function SearchBox({
   }
 
   const getResultTypeLabel = (result: SearchResult) => {
-    return result.type === 'task' ? '任务' : '步骤'
+    if (result.type === 'image') return '图片'
+    if (result.type === 'file') return '文件'
+    return '任务'
   }
 
   // 获取标签名称的函数
@@ -142,25 +157,51 @@ export function SearchBox({
 
   return (
     <div className="mb-6 relative" ref={dropdownRef}>
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-        <input
-          type="text"
-          placeholder={placeholder}
-          value={searchQuery}
-          onChange={handleInputChange}
-          disabled={disabled}
-          className="w-full pl-10 pr-4 py-2 border-0 border-b border-gray-300 focus:border-blue-500 focus:ring-0 focus:outline-none bg-transparent rounded-sm transition-colors placeholder-gray-400"
-        />
-        {isLoading && (
-          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-          </div>
-        )}
+      <div>
+        <div className="mb-2 flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => handleModeChange("all")}
+            className={`rounded-md px-2 py-1 text-xs transition-colors ${
+              searchMode === "all"
+                ? "bg-blue-100 text-blue-700"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            全部
+          </button>
+          <button
+            type="button"
+            onClick={() => handleModeChange("media")}
+            className={`rounded-md px-2 py-1 text-xs transition-colors ${
+              searchMode === "media"
+                ? "bg-blue-100 text-blue-700"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            图片/文件
+          </button>
+        </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <input
+            type="text"
+            placeholder={searchMode === "media" ? "搜索图片和文件（支持标题、备注、标签、文件名）..." : placeholder}
+            value={searchQuery}
+            onChange={handleInputChange}
+            disabled={disabled}
+            className="w-full pl-10 pr-4 py-2 border-0 border-b border-gray-300 focus:border-blue-500 focus:ring-0 focus:outline-none bg-transparent rounded-sm transition-colors placeholder-gray-400"
+          />
+          {isLoading && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 搜索结果下拉框 */}
-      {showDropdown && searchResults.length > 0 && (
+      {searchMode === "all" && showDropdown && searchResults.length > 0 && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
           {/* 搜索结果提示 */}
           <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs text-gray-600">

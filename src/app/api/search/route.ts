@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, tasks, tags } from '@/lib/db';
+import { db, tasks, tags, taskFiles } from '@/lib/db';
 import { createLogger, generateTraceId } from '@/lib/logger';
 import { sql } from 'drizzle-orm';
 import { authenticateUser, extractUserFromRequest } from '@/lib/auth';
+
+const isImageFile = (mimeType?: string | null, originalName?: string | null) => {
+  const normalizedMimeType = String(mimeType || '').toLowerCase()
+  if (normalizedMimeType.startsWith('image/')) return true
+
+  const fileName = String(originalName || '').toLowerCase()
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg']
+  return imageExtensions.some((ext) => fileName.endsWith(ext))
+}
 
 export async function GET(request: NextRequest) {
   const traceId = generateTraceId();
@@ -23,6 +32,7 @@ export async function GET(request: NextRequest) {
     // 获取查询参数
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
+    const mode = searchParams.get('mode') === 'media' ? 'media' : 'all';
     // 不再限制条数
 
     if (!query || query.trim().length === 0) {
@@ -34,6 +44,7 @@ export async function GET(request: NextRequest) {
     }
 
     const searchQuery = query.trim();
+    const normalizedQuery = searchQuery.toLowerCase()
     const userId = authResult.user.userId;
 
     // 先搜索匹配的标签ID
@@ -55,7 +66,6 @@ export async function GET(request: NextRequest) {
       tagSearchCondition = tagConditions.reduce((acc, condition) => sql`${acc} OR ${condition}`);
     }
     
-    // 使用SQLite的LIKE操作符进行模糊搜索
     // 搜索任务标题、备注和标签名称
     const taskResults = await db
       .select()
@@ -66,24 +76,84 @@ export async function GET(request: NextRequest) {
         ${tagSearchCondition}
       )`)
 
-    // 按创建时间倒序
-    const allResults = [...taskResults]
-      .sort((a, b) => new Date(String(b.createdAt)).getTime() - new Date(String(a.createdAt)).getTime())
-      .map((result) => ({
-        id: String(result.id),
-        title: String(result.title),
-        type: 'task' as const,
-        completed: Boolean(result.completed),
-        folderId: String(result.folderId),
-        notes: result.notes ? String(result.notes) : undefined,
-        tags: result.tags ? String(result.tags) : undefined,
-        createdAt: String(result.createdAt)
-      }));
+    let resultsWithBoolean: Array<Record<string, unknown>> = []
 
-    logger.info(`Search results: ${taskResults.length} tasks, total: ${allResults.length}`);
+    if (mode === 'all') {
+      // 按创建时间倒序
+      resultsWithBoolean = [...taskResults]
+        .sort((a, b) => new Date(String(b.createdAt)).getTime() - new Date(String(a.createdAt)).getTime())
+        .map((result) => ({
+          id: String(result.id),
+          title: String(result.title),
+          type: 'task' as const,
+          completed: Boolean(result.completed),
+          folderId: String(result.folderId),
+          notes: result.notes ? String(result.notes) : undefined,
+          tags: result.tags ? String(result.tags) : undefined,
+          createdAt: String(result.createdAt)
+        }));
 
-    // 转换布尔值
-    const resultsWithBoolean = allResults;
+      logger.info(`Search results (all): ${taskResults.length} tasks`);
+    } else {
+      const userTasks = await db
+        .select()
+        .from(tasks)
+        .where(sql`${tasks.userId} = ${userId}`);
+
+      const userTaskMap = new Map(
+        userTasks.map((task) => [String(task.id), task])
+      );
+
+      const userTaskIds = Array.from(userTaskMap.keys());
+      let userTaskCondition = sql`FALSE`;
+      if (userTaskIds.length > 0) {
+        userTaskCondition = userTaskIds
+          .map((taskId) => sql`${taskFiles.taskId} = ${taskId}`)
+          .reduce((acc, condition) => sql`${acc} OR ${condition}`);
+      }
+
+      const allUserFiles = userTaskIds.length > 0
+        ? await db
+            .select()
+            .from(taskFiles)
+            .where(userTaskCondition)
+        : [];
+
+      const matchedTaskIdSet = new Set(taskResults.map((task) => String(task.id)));
+
+      const mediaResults = allUserFiles
+        .filter((file) => {
+          const taskId = String(file.taskId);
+          if (!userTaskMap.has(taskId)) return false;
+
+          const fileName = String(file.originalName || '').toLowerCase();
+          const matchesFileName = fileName.includes(normalizedQuery);
+          return matchedTaskIdSet.has(taskId) || matchesFileName;
+        })
+        .map((file) => {
+          const taskId = String(file.taskId);
+          const task = userTaskMap.get(taskId);
+          const mimeType = file.mimeType ? String(file.mimeType) : '';
+          const originalName = file.originalName ? String(file.originalName) : '未命名文件';
+
+          return {
+            id: String(file.id),
+            fileId: String(file.id),
+            title: originalName,
+            type: isImageFile(mimeType, originalName) ? 'image' as const : 'file' as const,
+            taskId,
+            taskTitle: task ? String(task.title) : undefined,
+            folderId: task ? String(task.folderId) : undefined,
+            mimeType: mimeType || undefined,
+            fileSize: Number(file.fileSize || 0),
+            createdAt: String(file.createdAt)
+          };
+        })
+        .sort((a, b) => new Date(String(b.createdAt)).getTime() - new Date(String(a.createdAt)).getTime());
+
+      resultsWithBoolean = mediaResults;
+      logger.info(`Search results (media): ${mediaResults.length} files`);
+    }
 
     // 使用用户信息创建新的logger
     const userLogger = createLogger('search.route', traceId, {
@@ -91,7 +161,7 @@ export async function GET(request: NextRequest) {
       username: authResult.user.username
     });
     
-    userLogger.info(`Search completed successfully {"query":"${searchQuery}","count":${resultsWithBoolean.length}}`);
+    userLogger.info(`Search completed successfully {"query":"${searchQuery}","mode":"${mode}","count":${resultsWithBoolean.length}}`);
     
     return NextResponse.json({
       results: resultsWithBoolean,
