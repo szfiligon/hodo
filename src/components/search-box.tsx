@@ -186,7 +186,11 @@ export function SearchBox({
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           <input
             type="text"
-            placeholder={searchMode === "media" ? "搜索图片和文件（支持标题、备注、标签、文件名）..." : placeholder}
+            placeholder={
+              searchMode === "media"
+                ? "搜索图片和文件（支持分词：标题、备注、标签、文件名）..."
+                : `${placeholder}（支持分词）`
+            }
             value={searchQuery}
             onChange={handleInputChange}
             disabled={disabled}

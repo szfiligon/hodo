@@ -3,6 +3,7 @@ import { db, tasks, tags, taskFiles } from '@/lib/db';
 import { createLogger, generateTraceId } from '@/lib/logger';
 import { sql } from 'drizzle-orm';
 import { authenticateUser, extractUserFromRequest } from '@/lib/auth';
+import { tokenizeSearchQuery } from '@/lib/search-tokenizer';
 
 const isImageFile = (mimeType?: string | null, originalName?: string | null) => {
   const normalizedMimeType = String(mimeType || '').toLowerCase()
@@ -11,6 +12,19 @@ const isImageFile = (mimeType?: string | null, originalName?: string | null) => 
   const fileName = String(originalName || '').toLowerCase()
   const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg']
   return imageExtensions.some((ext) => fileName.endsWith(ext))
+}
+
+const buildLikeWithTokensCondition = (field: unknown, normalizedQuery: string, tokens: string[]) => {
+  const baseCondition = sql`${field} LIKE ${`%${normalizedQuery}%`}`
+  if (tokens.length === 0) {
+    return baseCondition
+  }
+
+  const tokenOrCondition = tokens
+    .map((token) => sql`${field} LIKE ${`%${token}%`}`)
+    .reduce((acc, condition) => sql`${acc} OR ${condition}`)
+
+  return sql`(${baseCondition} OR (${tokenOrCondition}))`
 }
 
 export async function GET(request: NextRequest) {
@@ -44,14 +58,20 @@ export async function GET(request: NextRequest) {
     }
 
     const searchQuery = query.trim();
-    const normalizedQuery = searchQuery.toLowerCase()
+    const { normalizedQuery, tokens } = tokenizeSearchQuery(searchQuery)
     const userId = authResult.user.userId;
+
+    logger.info(`Search tokenized query "${searchQuery}" => [${tokens.join(', ')}]`)
+
+    const taskTitleCondition = buildLikeWithTokensCondition(tasks.title, normalizedQuery, tokens)
+    const taskNotesCondition = sql`(${tasks.notes} IS NOT NULL AND ${buildLikeWithTokensCondition(tasks.notes, normalizedQuery, tokens)})`
+    const tagNameCondition = buildLikeWithTokensCondition(tags.name, normalizedQuery, tokens)
 
     // 先搜索匹配的标签ID
     const matchingTags = await db
       .select()
       .from(tags)
-      .where(sql`${tags.userId} = ${userId} AND ${tags.name} LIKE ${`%${searchQuery}%`}`);
+      .where(sql`${tags.userId} = ${userId} AND ${tagNameCondition}`);
 
     const matchingTagIds = matchingTags.map(tag => String(tag.id));
     
@@ -71,8 +91,8 @@ export async function GET(request: NextRequest) {
       .select()
       .from(tasks)
       .where(sql`${tasks.userId} = ${userId} AND (
-        ${tasks.title} LIKE ${`%${searchQuery}%`} OR 
-        (${tasks.notes} IS NOT NULL AND ${tasks.notes} LIKE ${`%${searchQuery}%`}) OR
+        ${taskTitleCondition} OR 
+        ${taskNotesCondition} OR
         ${tagSearchCondition}
       )`)
 
@@ -127,7 +147,10 @@ export async function GET(request: NextRequest) {
           if (!userTaskMap.has(taskId)) return false;
 
           const fileName = String(file.originalName || '').toLowerCase();
-          const matchesFileName = fileName.includes(normalizedQuery);
+          const matchesBaseFileName = fileName.includes(normalizedQuery);
+          const matchesTokenizedFileName =
+            tokens.length > 0 && tokens.some((token) => fileName.includes(token));
+          const matchesFileName = matchesBaseFileName || matchesTokenizedFileName;
           return matchedTaskIdSet.has(taskId) || matchesFileName;
         })
         .map((file) => {
