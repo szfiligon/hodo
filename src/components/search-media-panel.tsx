@@ -27,13 +27,6 @@ interface SearchMediaPanelProps {
   onOpenTask?: (taskId: string) => void
 }
 
-interface MediaGroup {
-  taskId: string
-  taskTitle: string
-  images: SearchResult[]
-  files: SearchResult[]
-}
-
 type MediaFilter = "all" | "image" | "file"
 
 const formatFileSize = (bytes?: number) => {
@@ -64,32 +57,21 @@ export function SearchMediaPanel({ query, results, isLoading, onOpenTask }: Sear
     [allMediaResults, mediaFilter]
   )
 
-  const groups = useMemo(() => {
-    const grouped = new Map<string, MediaGroup>()
+  const filteredImages = useMemo(
+    () =>
+      filteredMediaResults
+        .filter((result) => result.type === "image")
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [filteredMediaResults]
+  )
 
-    for (const result of filteredMediaResults) {
-      const taskId = result.taskId || "unknown-task"
-      const existingGroup = grouped.get(taskId) || {
-        taskId,
-        taskTitle: result.taskTitle || "未关联任务",
-        images: [],
-        files: [],
-      }
-
-      if (result.type === "image") {
-        existingGroup.images.push(result)
-      } else {
-        existingGroup.files.push(result)
-      }
-      grouped.set(taskId, existingGroup)
-    }
-
-    return Array.from(grouped.values()).sort((a, b) => {
-      const dateA = a.images[0]?.createdAt || a.files[0]?.createdAt || ""
-      const dateB = b.images[0]?.createdAt || b.files[0]?.createdAt || ""
-      return new Date(dateB).getTime() - new Date(dateA).getTime()
-    })
-  }, [filteredMediaResults])
+  const filteredFiles = useMemo(
+    () =>
+      filteredMediaResults
+        .filter((result) => result.type === "file")
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [filteredMediaResults]
+  )
 
   const allImageCount = useMemo(
     () => allMediaResults.filter((result) => result.type === "image").length,
@@ -100,8 +82,8 @@ export function SearchMediaPanel({ query, results, isLoading, onOpenTask }: Sear
     [allMediaResults]
   )
 
-  const openImagePreview = (groupImages: SearchResult[], index: number) => {
-    setPreviewImages(groupImages)
+  const openImagePreview = (index: number) => {
+    setPreviewImages(filteredImages)
     setPreviewIndex(index)
     setIsPreviewOpen(true)
   }
@@ -177,88 +159,94 @@ export function SearchMediaPanel({ query, results, isLoading, onOpenTask }: Sear
         </div>
       </div>
 
-      {groups.length === 0 && (
+      {filteredMediaResults.length === 0 && (
         <div className="rounded-lg border border-gray-200 bg-white p-6 text-center">
           <p className="text-sm text-gray-500">当前筛选下没有结果，试试切换到“全部”或其它筛选</p>
         </div>
       )}
 
-      {groups.map((group) => (
-        <div key={group.taskId} className="rounded-lg border border-gray-200 bg-white p-4">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900">{group.taskTitle}</h3>
-              <p className="text-xs text-muted-foreground">
-                图片 {group.images.length} 张 · 文件 {group.files.length} 个
-              </p>
-            </div>
-            {group.taskId !== "unknown-task" && onOpenTask && (
-              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => onOpenTask(group.taskId)}>
-                <ExternalLink className="mr-1 h-3.5 w-3.5" />
-                打开任务
-              </Button>
-            )}
+      {filteredImages.length > 0 && (
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="mb-3 flex items-center gap-1 text-xs text-gray-500">
+            <ImageIcon className="h-3.5 w-3.5" />
+            图片
           </div>
-
-          {group.images.length > 0 && (
-            <div className="mb-4">
-              <div className="mb-2 flex items-center gap-1 text-xs text-gray-500">
-                <ImageIcon className="h-3.5 w-3.5" />
-                图片
-              </div>
-              <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4">
-                {group.images.map((image, index) => {
-                  const fileId = image.fileId || image.id
-                  return (
-                    <button
-                      key={image.id}
-                      type="button"
-                      onClick={() => openImagePreview(group.images, index)}
-                      className="group relative aspect-square overflow-hidden rounded-md border border-gray-200 bg-gray-100"
-                    >
-                      <Image
-                        src={`/api/files/${fileId}`}
-                        alt={image.title}
-                        fill
-                        unoptimized
-                        className="object-cover transition-transform group-hover:scale-105"
-                        loading="lazy"
-                      />
-                      <div className="absolute inset-x-0 bottom-0 truncate bg-black/45 px-2 py-1 text-left text-[11px] text-white">
-                        {image.title}
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {group.files.length > 0 && (
-            <div>
-              <div className="mb-2 flex items-center gap-1 text-xs text-gray-500">
-                <FileText className="h-3.5 w-3.5" />
-                文件
-              </div>
-              <div className="space-y-2">
-                {group.files.map((file) => (
-                  <div key={file.id} className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-gray-900">{file.title}</p>
-                      <p className="text-xs text-gray-500">
-                        {formatFileSize(file.fileSize)} · {new Date(file.createdAt).toLocaleDateString("zh-CN")}
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+            {filteredImages.map((image, index) => {
+              const fileId = image.fileId || image.id
+              return (
+                <div key={image.id} className="rounded-md border border-gray-200 bg-gray-50 p-1.5">
+                  <button
+                    type="button"
+                    onClick={() => openImagePreview(index)}
+                    className="group relative block aspect-square w-full overflow-hidden rounded-md bg-gray-100"
+                  >
+                    <Image
+                      src={`/api/files/${fileId}`}
+                      alt={image.title}
+                      fill
+                      unoptimized
+                      className="object-cover transition-transform group-hover:scale-105"
+                      loading="lazy"
+                    />
+                  </button>
+                  <div className="mt-1.5 min-w-0">
+                    <p className="truncate text-xs font-medium text-gray-900" title={image.title}>
+                      {image.title}
+                    </p>
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="truncate text-[11px] text-gray-500" title={image.taskTitle || "未关联任务"}>
+                        {image.taskTitle || "未关联任务"}
                       </p>
+                      {image.taskId && onOpenTask && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 flex-shrink-0"
+                          onClick={() => onOpenTask(image.taskId!)}
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={() => handleDownload(file)}>
-                      <Download className="h-4 w-4" />
-                    </Button>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                </div>
+              )
+            })}
+          </div>
         </div>
-      ))}
+      )}
+
+      {filteredFiles.length > 0 && (
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="mb-2 flex items-center gap-1 text-xs text-gray-500">
+            <FileText className="h-3.5 w-3.5" />
+            文件
+          </div>
+          <div className="space-y-2">
+            {filteredFiles.map((file) => (
+              <div key={file.id} className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-gray-900">{file.title}</p>
+                  <p className="truncate text-xs text-gray-500">
+                    {file.taskTitle || "未关联任务"} · {formatFileSize(file.fileSize)} · {new Date(file.createdAt).toLocaleDateString("zh-CN")}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1">
+                  {file.taskId && onOpenTask && (
+                    <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={() => onOpenTask(file.taskId!)}>
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={() => handleDownload(file)}>
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-4xl bg-black p-2 text-white sm:p-4">
