@@ -7,8 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "pack:deploy": "bash ./build-next-deploy-package.sh",
-    "pack:deploy:skip-build": "SKIP_BUILD=1 bash ./build-next-deploy-package.sh",
+    "pack:deploy": "bash ./scripts/build-next-deploy-package.sh",
+    "pack:serverjs": "bash ./scripts/build-serverjs-transfer-package.sh",
+    "pack:double-zip": "bash ./scripts/create-double-zip.sh",
     "db:generate": "prisma generate",
     "db:migrate": "prisma db push",
     "db:studio": "prisma studio"

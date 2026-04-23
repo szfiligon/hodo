@@ -4,7 +4,7 @@ set -euo pipefail
 
 # Ensure we are running from the project root.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$SCRIPT_DIR"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PROJECT_NAME="$(basename "$PROJECT_DIR")"
 
 FIRST_ZIP="${PROJECT_NAME}.zip"
