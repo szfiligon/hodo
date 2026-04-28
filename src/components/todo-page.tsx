@@ -23,22 +23,41 @@ export function TodoPage() {
   // Filter folders by current user
   const userFolders = folders.filter(folder => folder.userId === currentUser?.id)
   const selectedFolder = userFolders.find(folder => folder.id === selectedFolderId)
+  const activeFolderIdSet = useMemo(
+    () => new Set(userFolders.filter((folder) => !folder.archived).map((folder) => folder.id)),
+    [userFolders]
+  )
+
+  const isSameDay = (date: Date, baseDate: Date) => {
+    return (
+      date.getFullYear() === baseDate.getFullYear() &&
+      date.getMonth() === baseDate.getMonth() &&
+      date.getDate() === baseDate.getDate()
+    )
+  }
 
   // 计算 tasks - 现在直接从store获取，因为已经按需加载了
   const folderFilteredTasks = useMemo(() => {
     if (!currentUser) return [];
     
     if (selectedFolderId === 'all-tasks') {
-      return tasks.filter(task => task.userId === currentUser.id);
+      return tasks.filter(
+        (task) => task.userId === currentUser.id && activeFolderIdSet.has(task.folderId)
+      );
     } else if (selectedFolderId === 'today-tasks') {
-      return tasks.filter(task => task.isTodayTask && task.userId === currentUser.id);
+      const now = new Date()
+      return tasks.filter((task) => {
+        if (!task.isTodayTask || task.userId !== currentUser.id) return false
+        if (!task.completed) return true
+        return isSameDay(new Date(task.updatedAt), now)
+      });
     } else if (selectedFolder && selectedFolderId) {
       return tasks.filter(task => 
         task.folderId === selectedFolderId && task.userId === currentUser.id
       );
     }
     return [];
-  }, [selectedFolderId, selectedFolder, tasks, currentUser]);
+  }, [selectedFolderId, selectedFolder, tasks, currentUser, activeFolderIdSet]);
 
   // 应用标签筛选
   const filteredTasks = useMemo(() => {

@@ -166,6 +166,7 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
       await get().loadFolders()
       // 初始化时只加载全部任务，其他任务按需加载
       await get().loadTasks()
+      set({ selectedFolderId: 'all-tasks' })
       return true
     }
     return false
@@ -225,6 +226,7 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
         await get().loadFolders()
         // 创建账户后加载全部任务
         await get().loadTasks()
+        set({ selectedFolderId: 'all-tasks' })
         return true
       }
       return false
@@ -312,6 +314,7 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
         await get().loadFolders()
         // 登录后加载全部任务
         await get().loadTasks()
+        set({ selectedFolderId: 'all-tasks' })
         return true
       }
       return false

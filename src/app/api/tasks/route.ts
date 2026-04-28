@@ -219,10 +219,20 @@ export async function GET_TODAY(request: NextRequest) {
     // 查询当前用户的所有今日任务
     const todayTasks = await db.select().from(tasks).where(sql`${tasks.isTodayTask} = 1 AND ${tasks.userId} = ${authResult.user.userId}`);
 
-    // 对今日任务进行排序
+    // 对今日任务进行过滤：已完成任务仅保留“今天更新”的
     const normalizedTodayTasks = todayTasks.map(task => normalizeTaskRecord(task as Record<string, unknown>));
+    const now = new Date()
+    const filteredTodayTasks = normalizedTodayTasks.filter((task) => {
+      if (!task.completed) return true
+      const updatedAt = new Date(task.updatedAt)
+      return (
+        updatedAt.getFullYear() === now.getFullYear() &&
+        updatedAt.getMonth() === now.getMonth() &&
+        updatedAt.getDate() === now.getDate()
+      )
+    })
 
-    const sortedTodayTasks = normalizedTodayTasks.sort((a, b) => {
+    const sortedTodayTasks = filteredTodayTasks.sort((a, b) => {
       // 首先按完成状态分组：未完成的任务在前，已完成的任务在后
       if (a.completed !== b.completed) {
         return a.completed ? 1 : -1;
