@@ -357,6 +357,19 @@ export const taskFiles = createTable('task_files', {
   updatedAt: 'updated_at',
 });
 
+export const taskSteps = createTable('task_steps', {
+  id: 'id',
+  taskId: 'task_id',
+  title: 'title',
+  estimatedMinutes: 'estimated_minutes',
+  order: 'order',
+  status: 'status',
+  startedAt: 'started_at',
+  completedAt: 'completed_at',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+});
+
 export const accessLogs = createTable('access_logs', {
   id: 'id',
   timestamp: 'timestamp',
@@ -536,6 +549,67 @@ async function performDatabaseInit() {
       console.log('Task files table and indexes created/verified successfully');
     } catch (error) {
       console.error('Error creating task_files table:', error);
+      throw error;
+    }
+
+    // 检查并创建任务步骤表
+    try {
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS task_steps (
+          id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL,
+          title TEXT NOT NULL,
+          estimated_minutes INTEGER NOT NULL DEFAULT 0,
+          "order" INTEGER NOT NULL DEFAULT 0,
+          status TEXT NOT NULL DEFAULT 'pending',
+          started_at TEXT,
+          completed_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      `);
+
+      try {
+        await db.run(sql`ALTER TABLE task_steps ADD COLUMN estimated_minutes INTEGER NOT NULL DEFAULT 0`);
+        console.log('Estimated minutes column added to existing task_steps table');
+      } catch {
+        console.log('Estimated minutes column already exists in task_steps table');
+      }
+
+      try {
+        await db.run(sql`ALTER TABLE task_steps ADD COLUMN "order" INTEGER NOT NULL DEFAULT 0`);
+        console.log('Order column added to existing task_steps table');
+      } catch {
+        console.log('Order column already exists in task_steps table');
+      }
+
+      try {
+        await db.run(sql`ALTER TABLE task_steps ADD COLUMN status TEXT NOT NULL DEFAULT 'pending'`);
+        console.log('Status column added to existing task_steps table');
+      } catch {
+        console.log('Status column already exists in task_steps table');
+      }
+
+      try {
+        await db.run(sql`ALTER TABLE task_steps ADD COLUMN started_at TEXT`);
+        console.log('Started at column added to existing task_steps table');
+      } catch {
+        console.log('Started at column already exists in task_steps table');
+      }
+
+      try {
+        await db.run(sql`ALTER TABLE task_steps ADD COLUMN completed_at TEXT`);
+        console.log('Completed at column added to existing task_steps table');
+      } catch {
+        console.log('Completed at column already exists in task_steps table');
+      }
+
+      await db.run(sql`CREATE INDEX IF NOT EXISTS idx_task_steps_task_order ON task_steps(task_id, "order", created_at)`);
+      await db.run(sql`CREATE INDEX IF NOT EXISTS idx_task_steps_task_status ON task_steps(task_id, status)`);
+
+      console.log('Task steps table and indexes created/verified successfully');
+    } catch (error) {
+      console.error('Error creating task_steps table:', error);
       throw error;
     }
 

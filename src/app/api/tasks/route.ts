@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, tasks, folders } from '@/lib/db';
+import { db, tasks, folders, taskSteps } from '@/lib/db';
 import { createLogger, generateTraceId } from '@/lib/logger';
 import { Task } from '@/lib/types';
 import { sql } from 'drizzle-orm';
@@ -439,6 +439,9 @@ export async function DELETE(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    // 先删除任务步骤，再删除任务，避免孤儿数据
+    await db.delete(taskSteps).where(sql`${taskSteps.taskId} = ${id}`);
 
     // 删除任务
     await db.delete(tasks).where(sql`${tasks.id} = ${id} AND ${tasks.userId} = ${authResult.user.userId}`);

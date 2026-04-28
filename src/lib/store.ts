@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { Task, Folder, TaskListState, User, TaskFile } from './types'
+import { Task, Folder, TaskListState, User, TaskFile, TaskStep, TaskStepStatus } from './types'
 import { showError } from './toast';
 
 // Helper function to convert date strings to Date objects
@@ -16,6 +16,24 @@ const convertDates = (obj: any): any => {
     return converted
   }
   return obj
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const convertTaskStepDates = (obj: any): TaskStep => {
+  const converted = { ...obj }
+  if (converted.createdAt && typeof converted.createdAt === 'string') {
+    converted.createdAt = new Date(converted.createdAt)
+  }
+  if (converted.updatedAt && typeof converted.updatedAt === 'string') {
+    converted.updatedAt = new Date(converted.updatedAt)
+  }
+  if (converted.startedAt && typeof converted.startedAt === 'string') {
+    converted.startedAt = new Date(converted.startedAt)
+  }
+  if (converted.completedAt && typeof converted.completedAt === 'string') {
+    converted.completedAt = new Date(converted.completedAt)
+  }
+  return converted as TaskStep
 }
 
 // localStorage helpers
@@ -146,6 +164,14 @@ interface TodoStore extends TaskListState {
   uploadTaskFile: (taskId: string, file: File) => Promise<boolean>
   getTaskFiles: (taskId: string) => Promise<TaskFile[]>
   deleteTaskFile: (fileId: string) => Promise<boolean>
+
+  // Task Step Actions
+  getTaskSteps: (taskId: string) => Promise<TaskStep[]>
+  getTaskStepsByTaskIds: (taskIds: string[]) => Promise<Record<string, TaskStep[]>>
+  addTaskStep: (taskId: string, title: string, estimatedMinutes: number) => Promise<TaskStep | null>
+  updateTaskStep: (stepId: string, payload: { title?: string; estimatedMinutes?: number }) => Promise<TaskStep | null>
+  updateTaskStepStatus: (stepId: string, status: TaskStepStatus) => Promise<TaskStep | null>
+  deleteTaskStep: (stepId: string) => Promise<boolean>
 
   // Store Initialization
   initializeStore: () => Promise<boolean>
@@ -1035,6 +1061,150 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
       return true
     } catch (error) {
       console.error('Error deleting file:', error)
+      return false
+    }
+  },
+
+  getTaskSteps: async (taskId: string) => {
+    try {
+      const response = await hodoFetch(`/api/task-steps?taskId=${encodeURIComponent(taskId)}`, {
+        headers: getAuthHeaders()
+      })
+      if (!response.ok) {
+        return []
+      }
+      const data = await response.json()
+      if (!data.success || !Array.isArray(data.steps)) {
+        return []
+      }
+      return data.steps.map(convertTaskStepDates)
+    } catch (error) {
+      console.error('Error loading task steps:', error)
+      return []
+    }
+  },
+
+  getTaskStepsByTaskIds: async (taskIds: string[]) => {
+    if (taskIds.length === 0) return {}
+    try {
+      const query = encodeURIComponent(taskIds.join(','))
+      const response = await hodoFetch(`/api/task-steps?taskIds=${query}`, {
+        headers: getAuthHeaders()
+      })
+      if (!response.ok) {
+        return {}
+      }
+      const data = await response.json()
+      if (!data.success || !Array.isArray(data.steps)) {
+        return {}
+      }
+      const grouped: Record<string, TaskStep[]> = {}
+      for (const rawStep of data.steps) {
+        const step = convertTaskStepDates(rawStep)
+        if (!grouped[step.taskId]) grouped[step.taskId] = []
+        grouped[step.taskId].push(step)
+      }
+      for (const taskId of Object.keys(grouped)) {
+        grouped[taskId].sort((a, b) => a.order - b.order)
+      }
+      return grouped
+    } catch (error) {
+      console.error('Error loading task steps by taskIds:', error)
+      return {}
+    }
+  },
+
+  addTaskStep: async (taskId: string, title: string, estimatedMinutes: number) => {
+    try {
+      const response = await hodoFetch('/api/task-steps', {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          taskId,
+          title,
+          estimatedMinutes,
+        }),
+      })
+      if (!response.ok) {
+        return null
+      }
+      const data = await response.json()
+      if (!data.success || !data.step) {
+        return null
+      }
+      return convertTaskStepDates(data.step)
+    } catch (error) {
+      console.error('Error adding task step:', error)
+      return null
+    }
+  },
+
+  updateTaskStep: async (stepId: string, payload: { title?: string; estimatedMinutes?: number }) => {
+    try {
+      const response = await hodoFetch('/api/task-steps', {
+        method: 'PUT',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: stepId,
+          ...payload,
+        }),
+      })
+      if (!response.ok) {
+        return null
+      }
+      const data = await response.json()
+      if (!data.success || !data.step) {
+        return null
+      }
+      return convertTaskStepDates(data.step)
+    } catch (error) {
+      console.error('Error updating task step:', error)
+      return null
+    }
+  },
+
+  updateTaskStepStatus: async (stepId: string, status: TaskStepStatus) => {
+    try {
+      const response = await hodoFetch('/api/task-steps', {
+        method: 'PUT',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: stepId,
+          status,
+        }),
+      })
+      if (!response.ok) {
+        return null
+      }
+      const data = await response.json()
+      if (!data.success || !data.step) {
+        return null
+      }
+      return convertTaskStepDates(data.step)
+    } catch (error) {
+      console.error('Error updating task step status:', error)
+      return null
+    }
+  },
+
+  deleteTaskStep: async (stepId: string) => {
+    try {
+      const response = await hodoFetch(`/api/task-steps?id=${encodeURIComponent(stepId)}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      })
+      return response.ok
+    } catch (error) {
+      console.error('Error deleting task step:', error)
       return false
     }
   },

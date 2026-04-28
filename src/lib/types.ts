@@ -20,6 +20,21 @@ export interface Task {
   updatedAt: Date
 }
 
+export type TaskStepStatus = "pending" | "in_progress" | "completed"
+
+export interface TaskStep {
+  id: string
+  taskId: string
+  title: string
+  estimatedMinutes: number
+  order: number
+  status: TaskStepStatus
+  startedAt?: Date | null
+  completedAt?: Date | null
+  createdAt: Date
+  updatedAt: Date
+}
+
 export interface TaskFile {
   id: string
   taskId: string

@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Check, Trash2, Loader2, Calendar, User, FileText, Star } from "lucide-react"
-import { Task } from "@/lib/types"
+import { Check, Trash2, Loader2, Calendar, User, FileText, Star, ListChecks } from "lucide-react"
+import { Task, TaskStep } from "@/lib/types"
 import { useTodoStore, useTagFeatureStore } from "@/lib/store"
 import { TaskFiles } from "./task-files"
 import { TagSelector } from "./tag-selector"
@@ -27,7 +27,24 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
   const [editNotes, setEditNotes] = useState(task.notes || '')
   const [isLoading, setIsLoading] = useState(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
-  const { toggleTask, updateTask, updateTaskNotes, toggleTodayTask, deleteTask, uploadTaskFile, updateTaskTags, getTaskFiles } = useTodoStore()
+  const [taskSteps, setTaskSteps] = useState<TaskStep[]>([])
+  const [isStepsLoading, setIsStepsLoading] = useState(false)
+  const [newStepTitle, setNewStepTitle] = useState("")
+  const [newStepEstimatedMinutes, setNewStepEstimatedMinutes] = useState("10")
+  const {
+    toggleTask,
+    updateTask,
+    updateTaskNotes,
+    toggleTodayTask,
+    deleteTask,
+    uploadTaskFile,
+    updateTaskTags,
+    getTaskFiles,
+    getTaskSteps,
+    addTaskStep,
+    updateTaskStepStatus,
+    deleteTaskStep,
+  } = useTodoStore()
   const { isEnabled: isTagFeatureEnabled } = useTagFeatureStore()
   const mdEditorRef = useRef<HTMLDivElement>(null)
   const taskFilesRef = useRef<{ reloadFiles: () => void } | null>(null)
@@ -38,6 +55,27 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
     setEditNotes(task.notes || '')
     setIsEditingTitle(false)
   }, [task.id, task.title, task.notes, task.updatedAt])
+
+  useEffect(() => {
+    let cancelled = false
+    const loadSteps = async () => {
+      setIsStepsLoading(true)
+      try {
+        const steps = await getTaskSteps(task.id)
+        if (!cancelled) {
+          setTaskSteps([...steps].sort((a, b) => b.order - a.order))
+        }
+      } finally {
+        if (!cancelled) {
+          setIsStepsLoading(false)
+        }
+      }
+    }
+    loadSteps()
+    return () => {
+      cancelled = true
+    }
+  }, [task.id, getTaskSteps])
 
   // 处理备注变化
   const handleNotesChange = (value: string | undefined) => {
@@ -267,6 +305,56 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
     })
   }
 
+  const formatTimeRange = (createdAt: Date, completedAt?: Date | null) => {
+    if (!completedAt) return ""
+    const formatter = new Intl.DateTimeFormat("zh-CN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    })
+    return `${formatter.format(new Date(createdAt))}-${formatter.format(new Date(completedAt))}`
+  }
+
+  const getActualMinutes = (step: TaskStep) => {
+    if (!step.completedAt) return 0
+    const start = new Date(step.createdAt).getTime()
+    const end = new Date(step.completedAt).getTime()
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 0
+    return Math.round((end - start) / 60000)
+  }
+
+  const handleAddStep = async () => {
+    const title = newStepTitle.trim()
+    const estimated = Number.parseInt(newStepEstimatedMinutes, 10)
+    if (!title || !Number.isFinite(estimated) || estimated < 0) return
+
+    const created = await addTaskStep(task.id, title, estimated)
+    if (!created) return
+
+    setTaskSteps((prev) => [...prev, created].sort((a, b) => b.order - a.order))
+    setNewStepTitle("")
+    setNewStepEstimatedMinutes("10")
+  }
+
+  const handleStepStatus = async (stepId: string, nextStatus: "pending" | "completed") => {
+    const updated = await updateTaskStepStatus(stepId, nextStatus)
+    if (!updated) return
+    setTaskSteps((prev) => prev.map((step) => (step.id === stepId ? updated : step)))
+  }
+
+  const handleDeleteStep = async (stepId: string) => {
+    const success = await deleteTaskStep(stepId)
+    if (!success) return
+    setTaskSteps((prev) => prev.filter((step) => step.id !== stepId))
+  }
+
+  const handleAddStepByEnter = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter") return
+    e.preventDefault()
+    await handleAddStep()
+  }
+
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
@@ -390,6 +478,68 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
               />
             </div>
           )}
+
+          {/* Task Steps Section */}
+          <div className="space-y-2 pt-3 border-t border-gray-200">
+            <div className="flex items-center gap-2">
+              <ListChecks className="h-4 w-4 text-gray-600" />
+              <h3 className="text-sm font-medium text-gray-900">任务步骤</h3>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-2.5 space-y-2">
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={newStepTitle}
+                  onChange={(e) => setNewStepTitle(e.target.value)}
+                  onKeyDown={handleAddStepByEnter}
+                  placeholder="步骤标题"
+                  className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={newStepEstimatedMinutes}
+                  onChange={(e) => setNewStepEstimatedMinutes(e.target.value)}
+                  onKeyDown={handleAddStepByEnter}
+                  className="w-16 rounded border border-transparent bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
+                />
+                <span className="text-xs text-muted-foreground">分钟</span>
+              </div>
+
+              {isStepsLoading && <p className="text-xs text-gray-500">步骤加载中...</p>}
+              {!isStepsLoading && taskSteps.length === 0 && <p className="text-xs text-gray-500">暂无步骤，先添加一条进度步骤</p>}
+
+              <div className="space-y-1">
+                {taskSteps.map((step) => {
+                  const actualMinutes = getActualMinutes(step)
+                  const diffMinutes = actualMinutes - step.estimatedMinutes
+                  const isCompleted = step.status === "completed"
+                  return (
+                    <div key={step.id} className="rounded border border-gray-200 bg-white px-2 py-1">
+                      <div className="flex items-center gap-1.5 text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={isCompleted}
+                          onChange={(e) => handleStepStatus(step.id, e.target.checked ? "completed" : "pending")}
+                          className="h-4 w-4 shrink-0 rounded border-gray-300"
+                        />
+                        <span className="truncate flex-1">{step.title}</span>
+                        {isCompleted && step.completedAt && (
+                          <span className="shrink-0 text-xs text-muted-foreground">
+                            {formatTimeRange(step.createdAt, step.completedAt)}({diffMinutes >= 0 ? "+" : ""}{diffMinutes})
+                          </span>
+                        )}
+                        <Button type="button" size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => handleDeleteStep(step.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
 
           {/* Notes Section */}
           <div className="space-y-2 pt-3 border-t border-gray-200">
