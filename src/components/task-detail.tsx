@@ -8,11 +8,7 @@ import { useTodoStore, useTagFeatureStore } from "@/lib/store"
 import { TaskFiles } from "./task-files"
 import { TagSelector } from "./tag-selector"
 import { showFileUploadSuccess, showFileUploadError } from "@/lib/toast"
-import { openExternalLink } from "@/lib/utils"
-
-
-import MDEditor from '@uiw/react-md-editor'
-import '@uiw/react-md-editor/markdown-editor.css'
+import { NotesEditor } from "./notes-editor/notes-editor"
 
 interface TaskDetailProps {
   task: Task
@@ -47,7 +43,6 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
     deleteTaskStep,
   } = useTodoStore()
   const { isEnabled: isTagFeatureEnabled } = useTagFeatureStore()
-  const mdEditorRef = useRef<HTMLDivElement>(null)
   const taskFilesRef = useRef<{ reloadFiles: () => void } | null>(null)
 
   // Update local state when task changes
@@ -102,32 +97,8 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
     }
   }, [])
 
-  // 提取备注中的链接
-  const extractLinks = (text: string) => {
-    // 匹配各种类型的链接
-    const urlRegex = /(https?:\/\/[^\s\)\]\}]+)/g
-    const links: string[] = []
-    let match
-    
-    while ((match = urlRegex.exec(text)) !== null) {
-      // 清理链接末尾的标点符号
-      let link = match[1]
-      link = link.replace(/[.,;:!?\)\]\}]$/, '')
-      if (link && !links.includes(link)) {
-        links.push(link)
-      }
-    }
-    
-    return links
-  }
-
-  // 处理链接点击
-  const handleLinkClick = async (url: string) => {
-    await openExternalLink(url);
-  }
-
   // 处理粘贴图片事件
-  const handlePaste = async (event: React.ClipboardEvent<HTMLDivElement>) => {
+  const handlePaste = async (event: React.ClipboardEvent<HTMLElement>) => {
     const items = event.clipboardData?.items
     if (!items) return
 
@@ -607,133 +578,14 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
               )}
             </div>
             <div className="w-full">
-              <style jsx global>{`
-                .w-md-editor {
-                  border: 1px solid #e5e7eb !important;
-                  border-radius: 0.75rem !important;
-                  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
-                  transition: all 0.2s ease-in-out !important;
-                  background-color: #f9fafb !important;
-                  height: auto !important;
-                  min-height: 200px !important;
-                  max-height: 400px !important;
-                }
-                
-                .w-md-editor:hover {
-                  border-color: #d1d5db !important;
-                  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
-                }
-                
-                .w-md-editor:focus-within {
-                  border-color: #3b82f6 !important;
-                  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
-                  background-color: #ffffff !important;
-                }
-                
-                .w-md-editor .w-md-editor-text,
-                .w-md-editor .w-md-editor-text * {
-                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
-                  font-size: 0.875rem !important;
-                  font-weight: 400 !important;
-                  line-height: 1.5 !important;
-                  color: #374151 !important;
-                }
-                
-                .w-md-editor .w-md-editor-text {
-                  padding: 12px !important;
-                  background-color: transparent !important;
-                  height: auto !important;
-                  min-height: 200px !important;
-                  max-height: 400px !important;
-                  resize: none !important;
-                }
-                
-                .w-md-editor .w-md-editor-text:focus {
-                  outline: none !important;
-                }
-                
-                .w-md-editor .w-md-editor-text h1,
-                .w-md-editor .w-md-editor-text h2,
-                .w-md-editor .w-md-editor-text h3,
-                .w-md-editor .w-md-editor-text h4,
-                .w-md-editor .w-md-editor-text h5,
-                .w-md-editor .w-md-editor-text h6 {
-                  font-weight: 600 !important;
-                  color: #111827 !important;
-                }
-                
-                .w-md-editor .w-md-editor-text p,
-                .w-md-editor .w-md-editor-text div,
-                .w-md-editor .w-md-editor-text span {
-                  font-weight: 400 !important;
-                  color: #374151 !important;
-                }
-                
-                .w-md-editor .w-md-editor-text ul,
-                .w-md-editor .w-md-editor-text ol {
-                  font-weight: 400 !important;
-                  color: #374151 !important;
-                }
-                
-                .w-md-editor .w-md-editor-text li {
-                  font-weight: 400 !important;
-                  color: #374151 !important;
-                }
-                
-                /* 覆盖MDEditor的默认样式 */
-                .w-md-editor .w-md-editor-text textarea {
-                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
-                  font-size: 0.875rem !important;
-                  font-weight: 400 !important;
-                  line-height: 1.5 !important;
-                  color: #374151 !important;
-                }
-              `}</style>
-              <MDEditor
-                  value={editNotes}
-                  onChange={handleNotesChange}
-                  onBlur={handleNotesBlur}
-                  onFocus={handleNotesFocus}
-                  onPaste={handlePaste}
-                  preview="edit"
-                  height="auto"
-                  minHeight={200}
-                  maxHeight={400}
-                  hideToolbar={true}
-                  className="w-full"
-                  data-color-mode="light"
-                  style={{
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '0.75rem',
-                    overflow: 'hidden',
-                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-                    transition: 'all 0.2s ease-in-out'
-                  }}
-                  ref={mdEditorRef}
-                />
-              
-              {/* 链接列表 */}
-              {extractLinks(editNotes).length > 0 && (
-                <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span className="text-sm font-medium text-gray-700">备注中的链接</span>
-                  </div>
-                  <div className="space-y-2">
-                    {extractLinks(editNotes).map((link, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleLinkClick(link)}
-                          className="text-sm text-blue-600 hover:text-blue-800 hover:underline truncate flex-1 text-left cursor-pointer"
-                          title={link}
-                        >
-                          {link}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <NotesEditor
+                value={editNotes}
+                onChange={handleNotesChange}
+                onBlur={handleNotesBlur}
+                onFocus={handleNotesFocus}
+                onPaste={handlePaste}
+                isLoading={isLoading}
+              />
             </div>
           </div>
 
