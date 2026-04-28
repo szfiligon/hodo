@@ -217,17 +217,19 @@ export async function PUT(request: NextRequest) {
     if (statusRaw !== undefined) {
       const now = new Date().toISOString()
       const status: TaskStepStatus = statusRaw === 'completed' ? 'completed' : statusRaw === 'in_progress' ? 'in_progress' : 'pending'
+      const previousStatusRaw = String((existingRows[0] as Record<string, unknown>).status ?? 'pending')
+      const previousStatus: TaskStepStatus =
+        previousStatusRaw === 'completed' || previousStatusRaw === 'in_progress' ? previousStatusRaw : 'pending'
+      const previousCompletedAt = (existingRows[0] as Record<string, unknown>).completedAt
       updateData.status = status
       if (status === 'pending') {
-        updateData.startedAt = null
         updateData.completedAt = null
       } else if (status === 'in_progress') {
-        updateData.startedAt = now
-        updateData.completedAt = null
+        // 简化模式下不需要记录 in_progress 时间点
       } else {
-        updateData.completedAt = now
-        if (!(existingRows[0] as Record<string, unknown>).startedAt) {
-          updateData.startedAt = now
+        // 仅在首次从非 completed 转换为 completed 时写入完成时间
+        if (previousStatus !== 'completed' || !previousCompletedAt) {
+          updateData.completedAt = now
         }
       }
     }

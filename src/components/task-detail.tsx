@@ -30,7 +30,8 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
   const [taskSteps, setTaskSteps] = useState<TaskStep[]>([])
   const [isStepsLoading, setIsStepsLoading] = useState(false)
   const [newStepTitle, setNewStepTitle] = useState("")
-  const [newStepEstimatedMinutes, setNewStepEstimatedMinutes] = useState("10")
+  const [newStepEstimatedMinutes, setNewStepEstimatedMinutes] = useState("")
+  const [showAllCompletedSteps, setShowAllCompletedSteps] = useState(false)
   const {
     toggleTask,
     updateTask,
@@ -326,15 +327,16 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
 
   const handleAddStep = async () => {
     const title = newStepTitle.trim()
-    const estimated = Number.parseInt(newStepEstimatedMinutes, 10)
-    if (!title || !Number.isFinite(estimated) || estimated < 0) return
+    const parsed = Number.parseInt(newStepEstimatedMinutes, 10)
+    const estimated = Number.isFinite(parsed) && parsed >= 0 ? parsed : 10
+    if (!title) return
 
     const created = await addTaskStep(task.id, title, estimated)
     if (!created) return
 
     setTaskSteps((prev) => [...prev, created].sort((a, b) => b.order - a.order))
     setNewStepTitle("")
-    setNewStepEstimatedMinutes("10")
+    setNewStepEstimatedMinutes("")
   }
 
   const handleStepStatus = async (stepId: string, nextStatus: "pending" | "completed") => {
@@ -354,6 +356,19 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
     e.preventDefault()
     await handleAddStep()
   }
+
+  const activeSteps = taskSteps
+    .filter((step) => step.status !== "completed")
+    .sort((a, b) => b.order - a.order)
+  const completedSteps = taskSteps
+    .filter((step) => step.status === "completed")
+    .sort((a, b) => {
+      const aTime = a.completedAt ? new Date(a.completedAt).getTime() : 0
+      const bTime = b.completedAt ? new Date(b.completedAt).getTime() : 0
+      return bTime - aTime
+    })
+  const visibleCompletedSteps = showAllCompletedSteps ? completedSteps : completedSteps.slice(0, 5)
+  const hiddenCompletedCount = Math.max(0, completedSteps.length - visibleCompletedSteps.length)
 
   return (
     <div className="h-full flex flex-col">
@@ -503,6 +518,7 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
                   onChange={(e) => setNewStepEstimatedMinutes(e.target.value)}
                   onKeyDown={handleAddStepByEnter}
                   className="w-16 rounded border border-transparent bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
+                  placeholder="10min"
                 />
                 <span className="text-xs text-muted-foreground">分钟</span>
               </div>
@@ -511,7 +527,7 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
               {!isStepsLoading && taskSteps.length === 0 && <p className="text-xs text-gray-500">暂无步骤，先添加一条进度步骤</p>}
 
               <div className="space-y-1">
-                {taskSteps.map((step) => {
+                {activeSteps.map((step) => {
                   const actualMinutes = getActualMinutes(step)
                   const diffMinutes = actualMinutes - step.estimatedMinutes
                   const isCompleted = step.status === "completed"
@@ -537,6 +553,43 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
                     </div>
                   )
                 })}
+                {activeSteps.length > 0 && completedSteps.length > 0 && (
+                  <div className="h-px bg-gray-200 my-1" />
+                )}
+                {visibleCompletedSteps.map((step) => {
+                  const actualMinutes = getActualMinutes(step)
+                  const diffMinutes = actualMinutes - step.estimatedMinutes
+                  return (
+                    <div key={step.id} className="rounded border border-gray-200 bg-white px-2 py-1">
+                      <div className="flex items-center gap-1.5 text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked
+                          onChange={(e) => handleStepStatus(step.id, e.target.checked ? "completed" : "pending")}
+                          className="h-4 w-4 shrink-0 rounded border-gray-300"
+                        />
+                        <span className="truncate flex-1">{step.title}</span>
+                        {step.completedAt && (
+                          <span className="shrink-0 text-xs text-muted-foreground">
+                            {formatTimeRange(step.createdAt, step.completedAt)}({diffMinutes >= 0 ? "+" : ""}{diffMinutes})
+                          </span>
+                        )}
+                        <Button type="button" size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => handleDeleteStep(step.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                })}
+                {completedSteps.length > 5 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllCompletedSteps((prev) => !prev)}
+                    className="w-full text-left text-xs text-muted-foreground hover:text-foreground px-1 py-0.5"
+                  >
+                    {showAllCompletedSteps ? "收起已完成步骤" : `展开其余 ${hiddenCompletedCount} 条`}
+                  </button>
+                )}
               </div>
             </div>
           </div>
