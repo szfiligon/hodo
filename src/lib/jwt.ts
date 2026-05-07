@@ -23,7 +23,8 @@ export function generateToken(userId: string, username: string): string {
     username,
   };
 
-  return jwt.sign(payload, JWT_SECRET); // 不传expiresIn，实现永久不过期
+  // 不传 expiresIn：签发无 exp 的 JWT，服务端 verify 不因时间失效（除非改密钥或主动登出）
+  return jwt.sign(payload, JWT_SECRET)
 }
 
 /**

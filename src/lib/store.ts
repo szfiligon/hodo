@@ -36,6 +36,9 @@ const convertTaskStepDates = (obj: any): TaskStep => {
   return converted as TaskStep
 }
 
+/** 与 `generateToken` 无过期时间一致：cookie 使用浏览器可接受的极大 max-age（约 68 年） */
+const AUTH_COOKIE_MAX_AGE_SEC = 2147483647
+
 // localStorage helpers
 const saveUserToStorage = (user: User, token?: string) => {
   if (typeof window !== 'undefined') {
@@ -43,10 +46,10 @@ const saveUserToStorage = (user: User, token?: string) => {
     if (token) {
       localStorage.setItem('hodo_token', token)
       // Set JWT token cookie for middleware authentication
-      document.cookie = `hodo_token=${token}; path=/; max-age=2592000` // 30 days
+      document.cookie = `hodo_token=${token}; path=/; max-age=${AUTH_COOKIE_MAX_AGE_SEC}`
     }
     // Set session cookie
-    document.cookie = `hodo_session=${user.id}; path=/; max-age=2592000` // 30 days
+    document.cookie = `hodo_session=${user.id}; path=/; max-age=${AUTH_COOKIE_MAX_AGE_SEC}`
   }
 }
 
