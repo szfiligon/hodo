@@ -36,11 +36,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Unsupported protocol" }, { status: 400 })
     }
 
+    const headers: Record<string, string> = {
+      "User-Agent": "hodo-link-preview/1.0",
+      Accept: "text/html,application/xhtml+xml",
+    }
+
+    const isSameHost = parsedUrl.host === request.nextUrl.host
+    if (isSameHost) {
+      const cookieHeader = request.headers.get("cookie")
+      if (cookieHeader) {
+        headers.Cookie = cookieHeader
+      }
+    }
+
     const response = await fetch(parsedUrl.toString(), {
-      headers: {
-        "User-Agent": "hodo-link-preview/1.0",
-        Accept: "text/html,application/xhtml+xml",
-      },
+      headers,
       signal: AbortSignal.timeout(5000),
     })
 

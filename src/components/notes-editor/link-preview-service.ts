@@ -13,6 +13,14 @@ export function setCachedLinkTitle(url: string, title: string): void {
   linkTitleCache.set(url, title)
 }
 
+export function getHostnameFallback(url: string): string {
+  try {
+    return new URL(url).hostname
+  } catch {
+    return url
+  }
+}
+
 export function extractUniqueUrls(text: string): string[] {
   const regex = /(https?:\/\/[^\s)\]}]+)/g
   const dedup = new Set<string>()
@@ -69,6 +77,10 @@ export async function fetchLinkTitles(urls: string[]): Promise<LinkTitleMap> {
       if (title) {
         setCachedLinkTitle(url, title)
         updates[url] = title
+      } else {
+        const fallback = getHostnameFallback(url)
+        setCachedLinkTitle(url, fallback)
+        updates[url] = fallback
       }
     })
   )
