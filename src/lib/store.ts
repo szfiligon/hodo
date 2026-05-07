@@ -143,6 +143,7 @@ interface TodoStore extends TaskListState {
   updateTaskNotes: (id: string, notes: string) => Promise<boolean>
   updateTaskTags: (id: string, tags: string[]) => Promise<boolean>
   toggleTodayTask: (id: string) => Promise<boolean>
+  clearTodayIncompleteTasks: (taskIds: string[]) => Promise<{ successCount: number; failedCount: number }>
   moveTask: (taskId: string, folderId: string) => Promise<boolean>
   loadTasks: (folderId?: string) => Promise<void>
   loadTodayTasks: () => Promise<void>
@@ -734,6 +735,60 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
       console.error('Error toggling today task:', error)
       return false
     }
+  },
+
+  clearTodayIncompleteTasks: async (taskIds: string[]) => {
+    if (taskIds.length === 0) {
+      return { successCount: 0, failedCount: 0 }
+    }
+
+    let successCount = 0
+    let failedCount = 0
+    const updatedTasks: Task[] = []
+
+    await Promise.all(
+      taskIds.map(async (id) => {
+        try {
+          const response = await hodoFetch('/api/tasks', {
+            method: 'PUT',
+            headers: {
+              ...getAuthHeaders(),
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              id,
+              isToday: false
+            }),
+          })
+
+          if (!response.ok) {
+            failedCount += 1
+            return
+          }
+
+          const data = await response.json()
+          if (data.success && data.task) {
+            updatedTasks.push(convertDates(data.task))
+            successCount += 1
+          } else {
+            failedCount += 1
+          }
+        } catch (error) {
+          console.error('Error clearing today task flag:', error)
+          failedCount += 1
+        }
+      })
+    )
+
+    if (updatedTasks.length > 0) {
+      const updatedTaskMap = new Map(updatedTasks.map((task) => [task.id, task]))
+      set((state) => ({
+        tasks: state.tasks.map((task) => updatedTaskMap.get(task.id) || task)
+      }))
+    }
+
+    await get().loadTodayTasks()
+    return { successCount, failedCount }
   },
 
   moveTask: async (taskId: string, folderId: string) => {

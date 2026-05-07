@@ -9,16 +9,18 @@ import { SearchBox } from "./search-box"
 import { SearchMediaPanel } from "./search-media-panel"
 import { TagFilter } from "./tag-filter"
 import { Task, SearchMode, SearchResult, TaskStep } from "@/lib/types"
+import { showError, showSuccess } from "@/lib/toast"
 import { openExternalLink } from "@/lib/utils"
 
 export function TodoPage() {
-  const { selectedFolderId, folders, tasks, currentUser, loadTodayTasks, getPinnedTasks, pinnedTasksUpdateTrigger } = useTodoStore()
+  const { selectedFolderId, folders, tasks, currentUser, loadTodayTasks, getPinnedTasks, pinnedTasksUpdateTrigger, clearTodayIncompleteTasks } = useTodoStore()
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [searchMode, setSearchMode] = useState<SearchMode>("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
+  const [isClearingTodayTasks, setIsClearingTodayTasks] = useState(false)
   const [stepsByTask, setStepsByTask] = useState<Record<string, TaskStep[]>>({})
   const lastStepsRequestKeyRef = useRef<string>("")
   const inFlightStepsRequestKeyRef = useRef<string | null>(null)
@@ -129,6 +131,9 @@ export function TodoPage() {
 
   const completedTasks = sortedTasks.filter(task => task.completed)
   const activeTasks = sortedTasks.filter(task => !task.completed)
+  const todayIncompleteTasks = selectedFolderId === 'today-tasks'
+    ? activeTasks.filter((task) => task.isTodayTask)
+    : []
 
   const formatMinuteDuration = (minutes: number) => {
     const safeMinutes = Math.max(0, Math.round(minutes))
@@ -162,6 +167,26 @@ export function TodoPage() {
   const handleTaskDelete = (taskId: string) => {
     if (selectedTask?.id === taskId) {
       setSelectedTask(null)
+    }
+  }
+
+  const handleClearTodayIncompleteTasks = async () => {
+    if (todayIncompleteTasks.length === 0 || isClearingTodayTasks) return
+    const confirmed = window.confirm(`将 ${todayIncompleteTasks.length} 个未完成任务移出今日任务？此操作不会删除任务。`)
+    if (!confirmed) return
+
+    setIsClearingTodayTasks(true)
+    try {
+      const taskIds = todayIncompleteTasks.map((task) => task.id)
+      const result = await clearTodayIncompleteTasks(taskIds)
+      if (result.successCount > 0) {
+        showSuccess(`已移出 ${result.successCount} 个未完成任务`)
+      }
+      if (result.failedCount > 0) {
+        showError(`${result.failedCount} 个任务移出失败，请重试`)
+      }
+    } finally {
+      setIsClearingTodayTasks(false)
     }
   }
 
@@ -377,6 +402,16 @@ export function TodoPage() {
                 style={{ backgroundColor: folderColor }}
               />
               <h1 className="text-xl font-bold text-gray-900">{folderName}</h1>
+              {selectedFolderId === 'today-tasks' && todayIncompleteTasks.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearTodayIncompleteTasks}
+                  disabled={isClearingTodayTasks}
+                  className="ml-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700 hover:bg-amber-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isClearingTodayTasks ? "清空中..." : "清空今日未完成"}
+                </button>
+              )}
             </div>
             <p className="text-sm text-gray-600">
               {filteredTasks.length} {filteredTasks.length === 1 ? '个任务' : '个任务'}
