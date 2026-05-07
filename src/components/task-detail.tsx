@@ -10,6 +10,18 @@ import { TagSelector } from "./tag-selector"
 import { showFileUploadSuccess, showFileUploadError } from "@/lib/toast"
 import { NotesEditor } from "./notes-editor/notes-editor"
 
+/** 去掉标题开头手写序号（阿拉伯/全角数字 + 常见分隔符），避免与列表自动序号重复 */
+function stripLeadingStepOrdinal(title: string): string {
+  let s = title.trimStart()
+  for (let i = 0; i < 4; i++) {
+    const before = s
+    s = s.replace(/^\d+[\.\)、．:：]\s*/, "")
+    s = s.replace(/^[０-９]+[．.\)、:：]\s*/u, "")
+    if (s === before) break
+  }
+  return s
+}
+
 interface TaskDetailProps {
   task: Task
   onUpdate: (updatedTask: Task) => void
@@ -498,7 +510,7 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
               {!isStepsLoading && taskSteps.length === 0 && <p className="text-xs text-gray-500">暂无步骤，先添加一条进度步骤</p>}
 
               <div className="space-y-1">
-                {activeSteps.map((step) => {
+                {activeSteps.map((step, index) => {
                   const actualMinutes = getActualMinutes(step)
                   const diffMinutes = actualMinutes - step.estimatedMinutes
                   const isCompleted = step.status === "completed"
@@ -511,7 +523,10 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
                           onChange={(e) => handleStepStatus(step.id, e.target.checked ? "completed" : "pending")}
                           className="h-4 w-4 shrink-0 rounded border-gray-300"
                         />
-                        <span className="truncate flex-1">{step.title}</span>
+                        <span className="flex min-w-0 flex-1 items-baseline gap-1">
+                          <span className="shrink-0 tabular-nums text-muted-foreground">{index + 1}.</span>
+                          <span className="truncate">{stripLeadingStepOrdinal(step.title)}</span>
+                        </span>
                         {isCompleted && step.completedAt && (
                           <span className="shrink-0 text-xs text-muted-foreground">
                             {formatTimeRange(step.createdAt, step.completedAt)}({diffMinutes >= 0 ? "+" : ""}{diffMinutes})
@@ -527,7 +542,7 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
                 {activeSteps.length > 0 && completedSteps.length > 0 && (
                   <div className="h-px bg-gray-200 my-1" />
                 )}
-                {visibleCompletedSteps.map((step) => {
+                {visibleCompletedSteps.map((step, index) => {
                   const actualMinutes = getActualMinutes(step)
                   const diffMinutes = actualMinutes - step.estimatedMinutes
                   return (
@@ -539,7 +554,10 @@ export function TaskDetail({ task, onUpdate, onDelete, onClose }: TaskDetailProp
                           onChange={(e) => handleStepStatus(step.id, e.target.checked ? "completed" : "pending")}
                           className="h-4 w-4 shrink-0 rounded border-gray-300"
                         />
-                        <span className="truncate flex-1">{step.title}</span>
+                        <span className="flex min-w-0 flex-1 items-baseline gap-1">
+                          <span className="shrink-0 tabular-nums text-muted-foreground">{index + 1}.</span>
+                          <span className="truncate">{stripLeadingStepOrdinal(step.title)}</span>
+                        </span>
                         {step.completedAt && (
                           <span className="shrink-0 text-xs text-muted-foreground">
                             {formatTimeRange(step.createdAt, step.completedAt)}({diffMinutes >= 0 ? "+" : ""}{diffMinutes})

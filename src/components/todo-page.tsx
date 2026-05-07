@@ -8,7 +8,7 @@ import { TaskDetail } from "./task-detail"
 import { SearchBox } from "./search-box"
 import { SearchMediaPanel } from "./search-media-panel"
 import { TagFilter } from "./tag-filter"
-import { Task, SearchMode, SearchResult, TaskStep } from "@/lib/types"
+import { Task, SearchMode, SearchResult } from "@/lib/types"
 import { showError, showSuccess } from "@/lib/toast"
 import { openExternalLink } from "@/lib/utils"
 
@@ -21,10 +21,7 @@ export function TodoPage() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
   const [isClearingTodayTasks, setIsClearingTodayTasks] = useState(false)
-  const [stepsByTask, setStepsByTask] = useState<Record<string, TaskStep[]>>({})
-  const lastStepsRequestKeyRef = useRef<string>("")
-  const inFlightStepsRequestKeyRef = useRef<string | null>(null)
-  
+
   // Filter folders by current user
   const userFolders = folders.filter(folder => folder.userId === currentUser?.id)
   const selectedFolder = userFolders.find(folder => folder.id === selectedFolderId)
@@ -135,27 +132,6 @@ export function TodoPage() {
     ? activeTasks.filter((task) => task.isTodayTask)
     : []
 
-  const formatMinuteDuration = (minutes: number) => {
-    const safeMinutes = Math.max(0, Math.round(minutes))
-    const hours = Math.floor(safeMinutes / 60)
-    const mins = safeMinutes % 60
-    if (hours > 0 && mins > 0) return `${hours}小时${mins}分钟`
-    if (hours > 0) return `${hours}小时`
-    return `${mins}分钟`
-  }
-
-  const getStepActualMinutes = (step: TaskStep) => {
-    if (!step.startedAt || !step.completedAt) return 0
-    const start = new Date(step.startedAt).getTime()
-    const end = new Date(step.completedAt).getTime()
-    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 0
-    return Math.round((end - start) / 60000)
-  }
-
-  const totalEstimatedMinutes = Object.values(stepsByTask).flat().reduce((sum, step) => sum + step.estimatedMinutes, 0)
-  const totalActualMinutes = Object.values(stepsByTask).flat().reduce((sum, step) => sum + getStepActualMinutes(step), 0)
-  const totalDiffMinutes = totalActualMinutes - totalEstimatedMinutes
-
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task)
   }
@@ -256,43 +232,6 @@ export function TodoPage() {
       setSelectedTask(null)
     }
   }, [filteredTasks, selectedTask])
-
-  useEffect(() => {
-    let cancelled = false
-    const loadStepsForCurrentList = async () => {
-      const taskIds = filteredTasks.map((task) => task.id)
-      const requestKey = [...taskIds].sort().join(",")
-
-      if (!requestKey) {
-        lastStepsRequestKeyRef.current = ""
-        if (!cancelled) {
-          setStepsByTask({})
-        }
-        return
-      }
-
-      if (
-        requestKey === lastStepsRequestKeyRef.current ||
-        requestKey === inFlightStepsRequestKeyRef.current
-      ) {
-        return
-      }
-
-      inFlightStepsRequestKeyRef.current = requestKey
-      const stepMap = await useTodoStore.getState().getTaskStepsByTaskIds(taskIds)
-      if (inFlightStepsRequestKeyRef.current === requestKey) {
-        inFlightStepsRequestKeyRef.current = null
-      }
-      if (!cancelled) {
-        setStepsByTask(stepMap)
-        lastStepsRequestKeyRef.current = requestKey
-      }
-    }
-    void loadStepsForCurrentList()
-    return () => {
-      cancelled = true
-    }
-  }, [filteredTasks])
 
   // 当选择今日任务时，调用API获取最新数据
   useEffect(() => {
@@ -425,13 +364,6 @@ export function TodoPage() {
                   • 已筛选 {selectedTags.length} 个标签
                 </span>
               )}
-            </p>
-            <p className="text-xs text-gray-600 mt-1">
-              总预计 {formatMinuteDuration(totalEstimatedMinutes)}
-              <span className="mx-1">|</span>
-              总实际 {formatMinuteDuration(totalActualMinutes)}
-              <span className="mx-1">|</span>
-              总差值 {totalDiffMinutes >= 0 ? "+" : ""}{formatMinuteDuration(Math.abs(totalDiffMinutes))}
             </p>
           </div>
 
