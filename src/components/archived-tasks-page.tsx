@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { useTodoStore } from "@/lib/store"
+import { useState, useEffect, useCallback, useRef } from "react"
+import { useTodoStore, getAuthHeaders } from "@/lib/store"
 import { Folder, Task } from "@/lib/types"
 import { Button } from "./ui/button"
 import { ChevronDown, ChevronRight, RotateCcw, FolderOpen, Archive } from "lucide-react"
@@ -30,7 +30,21 @@ export function ArchivedTasksPage({ onClose }: ArchivedTasksPageProps) {
   // 新增：存储所有归档任务的状态
   const [archivedTasks, setArchivedTasks] = useState<Map<string, Task[]>>(new Map())
 
-  // 新增：加载所有归档文件夹下的任务
+  const fetchFolderTasks = useCallback(async (folderId: string): Promise<Task[]> => {
+    const response = await fetch(`/api/tasks?folderId=${encodeURIComponent(folderId)}`, {
+      headers: getAuthHeaders(),
+    })
+    if (!response.ok) return []
+    const result = await response.json()
+    if (!result.success || !Array.isArray(result.tasks)) return []
+    return result.tasks.map((task: Task) => ({
+      ...task,
+      createdAt: new Date(task.createdAt),
+      updatedAt: new Date(task.updatedAt),
+    }))
+  }, [])
+
+  // 加载所有归档文件夹下的任务
   const loadAllArchivedTasks = useCallback(async (folders: Folder[]) => {
     if (!folders || folders.length === 0) return
     
@@ -38,13 +52,8 @@ export function ArchivedTasksPage({ onClose }: ArchivedTasksPageProps) {
     
     for (const folder of folders) {
       try {
-        const response = await fetch(`/api/tasks?folderId=${folder.id}`)
-        if (response.ok) {
-          const result = await response.json()
-          if (result.success) {
-            tasksMap.set(folder.id, result.tasks || [])
-          }
-        }
+        const folderTasks = await fetchFolderTasks(folder.id)
+        tasksMap.set(folder.id, folderTasks)
       } catch (error) {
         console.error(`加载文件夹 ${folder.name} 的任务失败:`, error)
         tasksMap.set(folder.id, [])
@@ -52,7 +61,7 @@ export function ArchivedTasksPage({ onClose }: ArchivedTasksPageProps) {
     }
     
     setArchivedTasks(tasksMap)
-  }, [])
+  }, [fetchFolderTasks])
 
   // 获取归档的文件夹
   const loadArchivedFolders = useCallback(async () => {
@@ -72,28 +81,21 @@ export function ArchivedTasksPage({ onClose }: ArchivedTasksPageProps) {
     }
   }, [currentUser, getArchivedFolders, loadAllArchivedTasks])
 
-  // 新增：重新加载特定文件夹的任务
   const reloadFolderTasks = useCallback(async (folderId: string) => {
     try {
-      const response = await fetch(`/api/tasks?folderId=${folderId}`)
-      if (response.ok) {
-        const result = await response.json()
-        if (result.success) {
-          setArchivedTasks(prev => new Map(prev).set(folderId, result.tasks || []))
-          
-          // 如果当前选中的任务在这个文件夹中，更新选中的任务
-          if (selectedTask) {
-            const updatedTask = result.tasks?.find((t: Task) => t.id === selectedTask.id)
-            if (updatedTask) {
-              setSelectedTask(updatedTask)
-            }
-          }
+      const folderTasks = await fetchFolderTasks(folderId)
+      setArchivedTasks(prev => new Map(prev).set(folderId, folderTasks))
+
+      if (selectedTask) {
+        const updatedTask = folderTasks.find((t) => t.id === selectedTask.id)
+        if (updatedTask) {
+          setSelectedTask(updatedTask)
         }
       }
     } catch (error) {
       console.error(`重新加载文件夹 ${folderId} 的任务失败:`, error)
     }
-  }, [selectedTask])
+  }, [fetchFolderTasks, selectedTask])
 
   // 获取用户的文件夹列表
   const loadUserFolders = useCallback(async () => {
@@ -384,13 +386,20 @@ interface ArchivedTaskListProps {
   onTasksReload: () => void
 }
 
-function ArchivedTaskList({ tasks, onTaskSelect, selectedTaskId, onTasksReload }: ArchivedTaskListProps) {
-  // 当任务列表为空时，尝试重新加载
+function ArchivedTaskList({ folderId, tasks, onTaskSelect, selectedTaskId, onTasksReload }: ArchivedTaskListProps) {
+  const hasReloadedRef = useRef(false)
+
   useEffect(() => {
-    if (tasks.length === 0) {
+    hasReloadedRef.current = false
+  }, [folderId])
+
+  // 父级批量加载失败时的单次补拉，避免空列表时无限重试
+  useEffect(() => {
+    if (tasks.length === 0 && !hasReloadedRef.current) {
+      hasReloadedRef.current = true
       onTasksReload()
     }
-  }, [tasks.length, onTasksReload])
+  }, [tasks.length, onTasksReload, folderId])
 
   if ((tasks || []).length === 0) {
     return <div className="text-gray-500 text-sm">该菜单下暂无任务</div>

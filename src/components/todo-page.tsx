@@ -226,12 +226,12 @@ export function TodoPage() {
     await openExternalLink(url);
   };
 
-  // 修复：如果 selectedTask 已经不在 tasks 里，自动关闭详情页
+  // 任务已从 store 删除时再关闭详情；不因列表筛选暂时不含该任务而关闭（如归档文件夹、搜索跳转）
   useEffect(() => {
-    if (selectedTask && !filteredTasks.find(t => t.id === selectedTask.id)) {
+    if (selectedTask && !tasks.some((t) => t.id === selectedTask.id)) {
       setSelectedTask(null)
     }
-  }, [filteredTasks, selectedTask])
+  }, [tasks, selectedTask])
 
   // 当选择今日任务时，调用API获取最新数据
   useEffect(() => {
