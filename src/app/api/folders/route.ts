@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, folders, tasks, taskFiles } from '@/lib/db';
+import { db, folders, tasks, taskFiles, taskSteps } from '@/lib/db';
 import { createLogger, generateTraceId } from '@/lib/logger';
 import { Folder } from '@/lib/types';
 import { sql } from 'drizzle-orm';
@@ -282,14 +282,13 @@ export async function DELETE(request: NextRequest) {
       .where(sql`${tasks.folderId} = ${id} AND ${tasks.userId} = ${authResult.user.userId}`);
     const taskIds = folderTasks.map(task => String(task.id));
 
-    // 如果有任务，先删除相关的任务文件
+    // 如果有任务，先删步骤与文件，再删任务，避免残留/约束失败
     if (taskIds.length > 0) {
-      // 删除任务文件 - 使用更安全的方法
       for (const taskId of taskIds) {
+        await db.delete(taskSteps).where(sql`${taskSteps.taskId} = ${taskId}`);
         await db.delete(taskFiles).where(sql`${taskFiles.taskId} = ${taskId}`);
       }
-      
-      // 删除任务
+
       await db.delete(tasks).where(sql`${tasks.folderId} = ${id} AND ${tasks.userId} = ${authResult.user.userId}`);
     }
 

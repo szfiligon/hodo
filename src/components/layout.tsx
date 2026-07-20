@@ -10,7 +10,7 @@ import { TagManagerPage } from './tag-manager-page'
 import { ArchivedTasksPage } from './archived-tasks-page'
 import { Button } from "./ui/button"
 import { MessageSquare, Settings, Tag } from "lucide-react"
-import { DndContext, closestCenter, DragEndEvent } from "@dnd-kit/core"
+import { DndContext, closestCenter, DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core"
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 
 
@@ -73,6 +73,12 @@ export function Layout({ children }: LayoutProps) {
       return () => clearTimeout(timer)
     }
   }, [currentView])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    })
+  )
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
@@ -169,6 +175,7 @@ export function Layout({ children }: LayoutProps) {
             <div>
               <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">任务菜单</h3>
               <DndContext
+                sensors={sensors}
                 collisionDetection={closestCenter}
                 onDragEnd={handleDragEnd}
               >

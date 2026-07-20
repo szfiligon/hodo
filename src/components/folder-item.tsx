@@ -112,7 +112,7 @@ export function FolderItem({ folder, isSelected, onSelect }: FolderItemProps) {
             style={{ backgroundColor: folder.color || '#0078d4' }}
           />
           <span className="flex-1 text-left truncate">{folder.name}</span>
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+          <div className="opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity flex items-center">
             <Button
               variant="ghost"
               size="icon"
@@ -139,8 +139,9 @@ export function FolderItem({ folder, isSelected, onSelect }: FolderItemProps) {
             <div
               {...attributes}
               {...listeners}
-              className="cursor-grab active:cursor-grabbing ml-1"
+              className="cursor-grab active:cursor-grabbing ml-1 touch-none"
               onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
             >
               <GripVertical className="h-4 w-4 text-gray-300 hover:text-gray-500" />
             </div>
@@ -158,8 +159,9 @@ export function FolderItem({ folder, isSelected, onSelect }: FolderItemProps) {
         cancelText="取消"
         variant="destructive"
         onConfirm={() => {
-          deleteFolder(folder.id)
-          setShowDeleteConfirm(false)
+          void deleteFolder(folder.id).then((success) => {
+            if (success) setShowDeleteConfirm(false)
+          })
         }}
       />
     </div>

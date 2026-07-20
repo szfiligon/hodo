@@ -411,8 +411,15 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        console.error('Failed to delete folder:', error)
+        let message = '删除菜单失败'
+        try {
+          const error = await response.json()
+          console.error('Failed to delete folder:', error)
+          if (typeof error?.error === 'string') message = error.error
+        } catch {
+          console.error('Failed to delete folder:', response.status)
+        }
+        showError(message)
         return false
       }
 
@@ -435,6 +442,7 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
       return true
     } catch (error) {
       console.error('Error deleting folder:', error)
+      showError('删除菜单失败')
       return false
     }
   },
@@ -482,7 +490,10 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
         const data = await response.json()
         if (data.success) {
           // Convert date strings to Date objects for all folders
-          const foldersWithDates = data.folders.map(convertDates)
+          const foldersWithDates = data.folders.map((folder: Folder) => ({
+            ...convertDates(folder),
+            archived: Boolean((folder as Folder & { archived?: unknown }).archived),
+          }))
           set({ folders: foldersWithDates })
         }
       }
@@ -1325,19 +1336,35 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
     const state = get()
     if (!state.currentUser) return
 
-    const userFolders = state.folders.filter(folder => folder.userId === state.currentUser!.id)
-    const reorderedFolders = [...userFolders]
+    // 必须与侧边栏一致：仅对未归档菜单排序（getSortedFolders），避免索引错位
+    const sortedFolders = get().getSortedFolders(state.currentUser.id)
+    if (
+      oldIndex < 0 ||
+      newIndex < 0 ||
+      oldIndex >= sortedFolders.length ||
+      newIndex >= sortedFolders.length ||
+      oldIndex === newIndex
+    ) {
+      return
+    }
+
+    const reorderedFolders = [...sortedFolders]
     const [movedFolder] = reorderedFolders.splice(oldIndex, 1)
     reorderedFolders.splice(newIndex, 0, movedFolder)
 
-    // Save the new order to localStorage
     const storageKey = `hodo_folder_order_${state.currentUser.id}`
-    const folderOrder = reorderedFolders.map(folder => folder.id)
-    localStorage.setItem(storageKey, JSON.stringify(folderOrder))
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify(reorderedFolders.map((folder) => folder.id))
+    )
 
-    // Update the folders state with the new order
-    const allFolders = state.folders.filter(folder => folder.userId !== state.currentUser!.id)
-    set({ folders: [...allFolders, ...reorderedFolders] })
+    const archivedFolders = state.folders.filter(
+      (folder) => folder.userId === state.currentUser!.id && !!folder.archived
+    )
+    const otherUsersFolders = state.folders.filter(
+      (folder) => folder.userId !== state.currentUser!.id
+    )
+    set({ folders: [...otherUsersFolders, ...reorderedFolders, ...archivedFolders] })
   },
 
   getSortedFolders: (userId: string) => {

@@ -38,7 +38,7 @@ export async function PUT(
     await db
       .update(folders)
       .set({ 
-        archived: archived,
+        archived: archived ? 1 : 0,
         updatedAt: now 
       })
       .where(sql`${folders.id} = ${id}`)
